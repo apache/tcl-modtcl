@@ -836,11 +836,6 @@ static Tcl_Obj* r_connection_keepalive(void)
 	return Tcl_NewIntObj(_r->connection->keepalive);
 }
 
-static Tcl_Obj* r_connection_keptalive(void)
-{
-	return Tcl_NewIntObj(_r->connection->keptalive);
-}
-
 static Tcl_Obj* r_connection_double_reverse(void)
 {
 	return Tcl_NewIntObj(_r->connection->double_reverse);
@@ -879,11 +874,6 @@ static Tcl_Obj* r_connection_notes(void)
 	}
 	
 	return obj;
-}
-
-static Tcl_Obj* r_connection_remain(void)
-{
-	return Tcl_NewLongObj(_r->connection->remain);
 }
 
 static Tcl_Obj* r_server_defn_name(void)
@@ -1047,8 +1037,9 @@ static int r_set_proto_num(int objc, Tcl_Obj *CONST objv[])
 
 static int r_set_allowed(int objc, Tcl_Obj *CONST objv[])
 {
+/* needs to be apr_int64_t, TCL doesn't support this in 8.3.4...
 	Tcl_GetIntFromObj(interp, objv[2], &(_r->allowed));
-	
+*/	
 	return TCL_OK;
 }
 
@@ -1068,21 +1059,21 @@ static int r_set_allowed_methods(int objc, Tcl_Obj *CONST objv[])
 		Tcl_WrongNumArgs(interp, 2, objv, "method_mask method_list");
 		return TCL_ERROR;
 	}
-	
+/*	needs to be apr_int64_t, TCL doesn't support this in 8.3.4...
 	Tcl_GetIntFromObj(interp, objv[2], &(_r->allowed_methods->method_mask));
 	
 	if (Tcl_ListObjGetElements(interp, objv[3], &xxobjc, &xxobjv) == TCL_ERROR) {
 		return TCL_ERROR;
 	}
 	
-	_r->allowed_methods->method_list = (apr_array_header_t*) apr_array_make(_r->allowed_methods->method_list->cont, xxobjc, sizeof(char*));
+	_r->allowed_methods->method_list = (apr_array_header_t*) apr_array_make(_r->allowed_methods->method_list->pool, xxobjc, sizeof(char*));
 	
 	for (i = 0; i < xxobjc; i++) {
 		char *xx = (char*) apr_array_push(_r->allowed_methods->method_list);
 		
-		xx = apr_pstrdup(_r->allowed_methods->method_list->cont, Tcl_GetString(xxobjv[i]));
+		xx = apr_pstrdup(_r->allowed_methods->method_list->pool, Tcl_GetString(xxobjv[i]));
 	}
-	
+*/	
 	return TCL_OK;
 }
 
@@ -1106,6 +1097,13 @@ static int r_set_err_headers_out(int objc, Tcl_Obj *CONST objv[])
 	}
 	
 	apr_table_set(_r->err_headers_out, Tcl_GetString(objv[2]), Tcl_GetString(objv[3]));
+	
+	return TCL_OK;
+}
+
+static int r_set_filename(int objc, Tcl_Obj *CONST objv[])
+{
+	_r->filename = apr_pstrdup(_r->pool, Tcl_GetString(objv[2]));
 	
 	return TCL_OK;
 }
@@ -1158,12 +1156,12 @@ static int r_set_content_languages(int objc, Tcl_Obj *CONST objv[])
 		return TCL_ERROR;
 	}
 	
-	_r->content_languages = apr_array_make(_r->content_languages->cont, xxobjc, sizeof(char*));
+	_r->content_languages = apr_array_make(_r->content_languages->pool, xxobjc, sizeof(char*));
 	
 	for (i = 0; i < xxobjc; i++) {
 		char *xx = apr_array_push(_r->content_languages);
 		
-		xx = apr_pstrdup(_r->content_languages->cont, Tcl_GetString(xxobjv[i]));
+		xx = apr_pstrdup(_r->content_languages->pool, Tcl_GetString(xxobjv[i]));
 	}
 	
 	return TCL_OK;
@@ -1234,7 +1232,7 @@ static int r_set_args(int objc, Tcl_Obj *CONST objv[])
 
 static int r_set_parsed_uri(int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_parse_uri_components(_r->pool, Tcl_GetString(objv[2]), &(_r->parsed_uri))));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(apr_uri_parse(_r->pool, Tcl_GetString(objv[2]), &(_r->parsed_uri))));
 		
 	return TCL_OK;
 }
@@ -1282,7 +1280,7 @@ r_table r_tbl[] = {
 	{ "content_type",		r_content_type,		r_set_content_type		},
 	{ "err_headers_out",	r_err_headers_out,	r_set_err_headers_out	},
 	{ "expecting_100",		r_expecting_100,	NULL					},
-	{ "filename",			r_filename,			NULL					},
+	{ "filename",			r_filename,			r_set_filename			},
 	{ "handler",			r_handler,			NULL					},
 	{ "headers_in",			r_headers_in,		NULL					},
 	{ "headers_out",		r_headers_out,		r_set_headers_out		},
@@ -1323,14 +1321,12 @@ r_table r_connection_tbl[] = {
 	{ "remote_logname",		r_connection_remote_logname,	NULL					},
 	{ "aborted",			r_connection_aborted,			NULL					},
 	{ "keepalive",			r_connection_keepalive,			NULL					},
-	{ "keptalive",			r_connection_keptalive,			NULL					},
 	{ "doublereverse",		r_connection_double_reverse,	NULL					},
 	{ "keepalives",			r_connection_keepalives,		NULL					},
 	{ "local_ip",			r_connection_local_ip,			NULL					},
 	{ "local_host",			r_connection_local_host,		NULL					},
 	{ "id",					r_connection_id,				NULL					},
 	{ "notes",				r_connection_notes,				r_set_connection_notes	},
-	{ "remain",				r_connection_remain,			NULL					},
 	{ NULL,					NULL,							NULL					}
 };
 

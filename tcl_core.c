@@ -74,51 +74,54 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d);
 /* 8  */ inline int tcl_fixups(request_rec *r);
 /* 9  */ inline int tcl_log_transaction(request_rec *r);
 
-static const char* add_hand(cmd_parms *parms, void *mconfig, const char *arg);
+static const char* add_hand1(cmd_parms *parms, void *mconfig, const char *arg);
+static const char* add_hand2(cmd_parms *parms, void *mconfig, const char *arg1, const char *arg2);
 static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
 static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, const char *two, const char *three);
 static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one, const char *two);
-static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
+//static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
 
-typedef const char* (*fz_t)(void);
+//typedef const char* (*fz_t)(void);
 
 static const command_rec tcl_commands[] = {
-	AP_INIT_FLAG(		"Tcl",							(fz_t) sfl,				(void*) 1,	OR_AUTHCFG,		"turn mod_tcl on or off." ),
-	AP_INIT_TAKE23(		"Tcl_Var",						(fz_t) tcl_set,			NULL,		OR_AUTHCFG,		"set global variables in TCL." ),
-	AP_INIT_TAKE2(		"Tcl_ListVar",					(fz_t) tcl_setlist,		NULL,		OR_AUTHCFG,		"set global list variables." ),
+	/* this doesn't do anything anymore */
+	AP_INIT_FLAG(		"Tcl",							/*(fz_t)*/ sfl,				(void*) 1,	OR_AUTHCFG,		"turn mod_tcl on or off." ),
+	AP_INIT_TAKE23(		"Tcl_Var",						/*(fz_t)*/ tcl_set,			NULL,		OR_AUTHCFG,		"set global variables in TCL." ),
+	AP_INIT_TAKE2(		"Tcl_ListVar",					/*(fz_t)*/ tcl_setlist,		NULL,		OR_AUTHCFG,		"set global list variables." ),
 
-	/* this may be phased out, it should now be, Tcl_ContentHandler */
-	AP_INIT_TAKE1(		"Tcl_ContentHandlers",			(fz_t) add_hand,		(void*) 0,	OR_AUTHCFG,		"add content handler." ),
+	/* this will be phased out, it should now be, Tcl_ContentHandler */
+	AP_INIT_TAKE1(		"Tcl_ContentHandlers",			/*(fz_t)*/ add_hand1,		(void*) 8,	OR_AUTHCFG,		"add content handler." ),
+	AP_INIT_TAKE1(		"Tcl_ContentHandler",			/*(fz_t)*/ add_hand1,		(void*) 8,	OR_AUTHCFG,		"add content handlers." ),
 	
-	AP_INIT_TAKE1(		"Tcl_ContentHandler",			(fz_t) add_hand,		(void*) 0,	OR_AUTHCFG,		"add content handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Post_Read_Request",	(fz_t) add_hand,		(void*) 1,	OR_AUTHCFG,		"add post_read_request handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Translate_Name",		(fz_t) add_hand,		(void*) 2,	OR_AUTHCFG,		"add translate_name handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Header_Parser",		(fz_t) add_hand,		(void*) 3,	OR_AUTHCFG,		"add header_parser handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Access_Checker",		(fz_t) add_hand,		(void*) 4,	OR_AUTHCFG,		"add access_checker handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Check_User_ID",		(fz_t) add_hand,		(void*) 5,	OR_AUTHCFG,		"add check_user_id handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Auth_Checker",		(fz_t) add_hand,		(void*) 6,	OR_AUTHCFG,		"add auth_checker handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Type_Checker",		(fz_t) add_hand,		(void*) 7,	OR_AUTHCFG,		"add type_checker handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Fixups",				(fz_t) add_hand,		(void*) 8,	OR_AUTHCFG,		"add fixups handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Log_Transaction",		(fz_t) add_hand,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
-	AP_INIT_RAW_ARGS(	"<Tcl>",						(fz_t) tcl_raw_args,	NULL,		RSRC_CONF|EXEC_ON_READ,		"add raw tcl to the interpreter." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Post_Read_Request",	/*(fz_t)*/ add_hand2,		(void*) 0,	OR_AUTHCFG,		"add post_read_request handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Translate_Name",		/*(fz_t)*/ add_hand2,		(void*) 1,	OR_AUTHCFG,		"add translate_name handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Header_Parser",		/*(fz_t)*/ add_hand1,		(void*) 2,	OR_AUTHCFG,		"add header_parser handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Access_Checker",		/*(fz_t)*/ add_hand1,		(void*) 3,	OR_AUTHCFG,		"add access_checker handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Check_User_ID",		/*(fz_t)*/ add_hand1,		(void*) 4,	OR_AUTHCFG,		"add check_user_id handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Auth_Checker",		/*(fz_t)*/ add_hand1,		(void*) 5,	OR_AUTHCFG,		"add auth_checker handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Type_Checker",		/*(fz_t)*/ add_hand1,		(void*) 6,	OR_AUTHCFG,		"add type_checker handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Fixups",				/*(fz_t)*/ add_hand1,		(void*) 7,	OR_AUTHCFG,		"add fixups handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Handler",				/*(fz_t)*/ add_hand1,		(void*) 8,	OR_AUTHCFG,		"add content handler." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_Log_Transaction",		/*(fz_t)*/ add_hand1,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
+//	AP_INIT_RAW_ARGS(	"<Tcl>",						/*(fz_t)*/ tcl_raw_args,	NULL,		RSRC_CONF|EXEC_ON_READ,		"add raw tcl to the interpreter." ),
 	{ NULL }
 };
 
 static void register_hooks(apr_pool_t *p)
-{
+{	
 	ap_hook_pre_config(tcl_init, NULL, NULL, APR_HOOK_REALLY_FIRST);
 	ap_hook_post_config(tcl_init_handler, NULL, NULL, APR_HOOK_MIDDLE);
 	
-//	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, APR_HOOK_FIRST);
-//	ap_hook_translate_name(tcl_translate_name, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_header_parser(tcl_header_parser, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_access_checker(tcl_access_checker, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_auth_checker(tcl_auth_checker, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_type_checker(tcl_type_checker, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_fixups(tcl_fixups, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_handler(tcl_handler, NULL, NULL, APR_HOOK_FIRST);
-	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_translate_name(tcl_translate_name, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_header_parser(tcl_header_parser, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_access_checker(tcl_access_checker, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_auth_checker(tcl_auth_checker, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_type_checker(tcl_type_checker, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_fixups(tcl_fixups, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_handler(tcl_handler, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
 AP_DECLARE_DATA module tcl_module = {
@@ -139,6 +142,7 @@ typedef struct {
 typedef struct {
 	int					fl;
 	char				*handlers[10];
+	char				*file_location[2];
 	apr_array_header_t	*var_list;
 } tcl_config_rec;
 
@@ -164,16 +168,28 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 	tclr->var_list	= apr_array_make(p, 0, sizeof(var_cache));
 	
 	memset(tclr->handlers, 0, 10 * sizeof(char*));
+	memset(tclr->file_location, 0, 2 * sizeof(char*));
 	
 	return tclr;
 }
 
-static const char* add_hand(cmd_parms *parms, void *mconfig, const char* arg)
+static const char* add_hand1(cmd_parms *parms, void *mconfig, const char* arg)
 {
 	int pos = (int) parms->info;
 	tcl_config_rec *tclr = (tcl_config_rec*) mconfig;
 	
 	tclr->handlers[pos] = apr_pstrdup(parms->pool, arg);
+	
+	return NULL;
+}
+
+static const char* add_hand2(cmd_parms *parms, void *mconfig, const char* arg1, const char* arg2)
+{
+	int pos = (int) parms->info;
+	tcl_config_rec *tclr = (tcl_config_rec*) mconfig;
+	
+	tclr->handlers[pos] = apr_pstrdup(parms->pool, arg1);
+	tclr->file_location[pos] = apr_pstrdup(parms->pool, arg2);
 	
 	return NULL;
 }
@@ -229,7 +245,7 @@ static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one,
 	
 	return NULL;
 }
-
+/*
 static const char* tcl_raw_args(cmd_parms *cmd, void *mconfig, char *arg)
 {
 	char **xx, *z = apr_pstrdup(cmd->pool, "");
@@ -245,17 +261,17 @@ static const char* tcl_raw_args(cmd_parms *cmd, void *mconfig, char *arg)
 			break;
 		}
 		
-    	/* ick */
+    	// ick
     	z = apr_pstrcat(cmd->pool, z, l, "\n", NULL);
     }
 	
-	/* ick */
+	// ick
 	raw_tcl = realloc(raw_tcl, strlen(z) + 1);
 	strcat(raw_tcl, z);
 	
 	return NULL;
 }
-
+*/
 void run_script(Tcl_Interp* interp, char *fmt, ...)
 {
 	char *bptr = NULL;
@@ -554,19 +570,19 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d7");
+	ap_add_version_component(pconf, "mod_tcl/1.0d8-2001112900");
 }
 
 static int run_handler(request_rec *r, int hh)
 {
 	int xx = HTTP_NOT_FOUND, i;
 	tcl_config_rec *tclr = (tcl_config_rec*) ap_get_module_config(r->per_dir_config, &tcl_module);
-	size_t flen = strlen(r->filename);
+	size_t flen;
 	file_cache *fptr = NULL, *fa = (file_cache*) fcache->elts;
 	var_cache *vl = (var_cache*) tclr->var_list->elts;
 	struct stat st;
 	
-	if (!(tclr->fl & 1) || !interp) {
+	if (!interp) {
 		return DECLINED;
 	}
 	
@@ -575,6 +591,16 @@ static int run_handler(request_rec *r, int hh)
 		return DECLINED;
 	}
 	
+	if (hh < 2) {
+		/* this will be rewritten by some translation... */
+		r->filename = tclr->file_location[hh];
+	}
+	else if (r->finfo.filetype != APR_REG) {
+		ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, r->server, "request URI does not match a file, a translation phase may have failed, r->filename = %s", r->filename);
+		return DECLINED;
+	}
+	
+	flen = strlen(r->filename);
 	stat(r->filename, &st);
 	
 	for (i = 0; i < fcache->nelts; i++) {
@@ -598,22 +624,22 @@ static int run_handler(request_rec *r, int hh)
 		}
 
 #ifdef HAVE_MMAP
-		mptr = mmap((caddr_t) 0, r->finfo.size, PROT_READ, MAP_SHARED, fd, 0);
+		mptr = mmap((caddr_t) 0, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
 #else
-		mptr = malloc(r->finfo.size);
-		read(fd, mptr, r->finfo.size);
+		mptr = malloc(st.st_size);
+		read(fd, mptr, st.st_size);
 #endif /* HAVE_MMAP */
 
-		bptr = (char*) malloc(r->finfo.size + flen + 21);
+		bptr = (char*) malloc(st.st_size + flen + 21);
 		
 		memcpy(bptr, "namespace eval ", 15);		pos += 15;
 		memcpy(bptr + pos, r->filename, flen);		pos += flen;
 		memcpy(bptr + pos, " {\n", 3);				pos += 3;
-		memcpy(bptr + pos, mptr, r->finfo.size);	pos += r->finfo.size;
+		memcpy(bptr + pos, mptr, st.st_size);		pos += st.st_size;
 		memcpy(bptr + pos, "\n}\0", 3);
 		
 #ifdef HAVE_MMAP
-		munmap((char*) mptr, r->finfo.size);
+		munmap((char*) mptr, st.st_size);
 #else
 		free(mptr);
 #endif /* HAVE_MMAP */
@@ -622,7 +648,7 @@ static int run_handler(request_rec *r, int hh)
 		
 		fptr = (file_cache*) apr_array_push(fcache);
 		
-		fptr->file = apr_pstrdup(fcache->cont, r->filename);
+		fptr->file = apr_pstrdup(fcache->pool, r->filename);
 		memcpy(&(fptr->st), &st, sizeof(struct stat));
 		
 		obj = Tcl_NewStringObj(bptr, -1);
@@ -668,22 +694,22 @@ static int run_handler(request_rec *r, int hh)
 		}
 		
 #ifdef HAVE_MMAP
-		mptr = mmap((caddr_t) 0, r->finfo.size, PROT_READ, MAP_SHARED, fd, 0);
+		mptr = mmap((caddr_t) 0, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
 #else
-		mptr = malloc(r->finfo.size);
-		read(fd, mptr, r->finfo.size);
+		mptr = malloc(st.st_size);
+		read(fd, mptr, st.st_size);
 #endif /* HAVE_MMAP */
 
-		bptr = malloc(r->finfo.size + flen + 21);
+		bptr = malloc(st.st_size + flen + 21);
 		
 		memcpy(bptr, "namespace eval ", 15);		pos += 15;
 		memcpy(bptr + pos, r->filename, flen);		pos += flen;
 		memcpy(bptr + pos, " {\n", 3);				pos += 3;
-		memcpy(bptr + pos, mptr, r->finfo.size);	pos += r->finfo.size;
+		memcpy(bptr + pos, mptr, st.st_size);	pos += st.st_size;
 		memcpy(bptr + pos, "\n}\0", 3);
 		
 #ifdef HAVE_MMAP
-		munmap((char*) mptr, r->finfo.size);
+		munmap((char*) mptr, st.st_size);
 #else
 		free(mptr);
 #endif /* HAVE_MMAP */
@@ -692,7 +718,7 @@ static int run_handler(request_rec *r, int hh)
 		
 		fptr = (file_cache*) apr_array_push(fcache);
 		
-		fptr->file = apr_pstrdup(fcache->cont, r->filename);
+		fptr->file = apr_pstrdup(fcache->pool, r->filename);
 		memcpy(&(fptr->st), &st, sizeof(struct stat));
 		
 		obj = Tcl_NewStringObj(bptr, -1);
@@ -736,52 +762,53 @@ static int run_handler(request_rec *r, int hh)
 	return xx;
 }
 
+inline int tcl_post_read_request(request_rec *r)
+{
+	return run_handler(r, 0);
+}
+
+inline int tcl_translate_name(request_rec *r)
+{
+	return run_handler(r, 1);
+}
+
+inline int tcl_header_parser(request_rec *r)
+{
+	return run_handler(r, 2);
+}
+
+inline int tcl_access_checker(request_rec *r)
+{
+	return run_handler(r, 3);
+}
+
+inline int tcl_check_user_id(request_rec *r)
+{
+	return run_handler(r, 4);
+}
+
+inline int tcl_auth_checker(request_rec *r)
+{
+	return run_handler(r, 5);
+}
+
+inline int tcl_type_checker(request_rec *r)
+{
+	return run_handler(r, 6);
+}
+
+inline int tcl_fixups(request_rec *r)
+{
+	return run_handler(r, 7);
+}
+
+
 inline int tcl_handler(request_rec *r)
 {
 	if (strcmp("tcl-handler", r->handler)) {
 		return DECLINED;
 	}
 	
-	return run_handler(r, 0);
-}
-
-inline int tcl_post_read_request(request_rec *r)
-{
-	return run_handler(r, 1);
-}
-
-inline int tcl_translate_name(request_rec *r)
-{
-	return run_handler(r, 2);
-}
-
-inline int tcl_header_parser(request_rec *r)
-{
-	return run_handler(r, 3);
-}
-
-inline int tcl_access_checker(request_rec *r)
-{
-	return run_handler(r, 4);
-}
-
-inline int tcl_check_user_id(request_rec *r)
-{
-	return run_handler(r, 5);
-}
-
-inline int tcl_auth_checker(request_rec *r)
-{
-	return run_handler(r, 6);
-}
-
-inline int tcl_type_checker(request_rec *r)
-{
-	return run_handler(r, 7);
-}
-
-inline int tcl_fixups(request_rec *r)
-{
 	return run_handler(r, 8);
 }
 

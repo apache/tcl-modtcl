@@ -1,3 +1,19 @@
+Changes in 1.0d8-2001112900
+--------------------------------------------------------------------------------
+- Some structures changed in Apache 2.0.28, noteably in the connection record,
+some variables were axed.  (keptalive and keepalives).
+- Some variables sizes changed in the request_rec structure, from 32 bits to 64
+bits, which isn't supported by Tcl in 8.3.4.  (allowed and allowed_methods).
+- <Tcl> raw args no longer work in 2.0.28.
+- The use of the `Tcl' directory to enable mod_tcl in a directory is deprecated.
+- No longer use `SetHandler tcl-handler', use `Addhandler tcl-handler tm' in a
+directory statement, (tm is the extension to match [.tm]).  If you use
+SetHandler it will interfere with mod_dir.c and other handlers, unless you don't
+care about the other handlers.  I'm not sure if this is an Apache bug or what? 
+For mod_dir.c it appears to be called and but tries to match against
+tcl-handler?  See the INSTALL file for an example of a configuration in 2.0.28,
+see the test_script.tm example for an example script.
+
 Changes in 1.0d7
 --------------------------------------------------------------------------------
 - Migration to Apache 2.0.16
@@ -5,35 +21,32 @@ Changes in 1.0d7
 
 Changes in 1.0d7pre
 --------------------------------------------------------------------------------
-- Fixed <Tcl>...</Tcl>, these should be placed outside of <Directory>/<Location> directives.  Everything in <Tcl>...</Tcl> is added to a global variable and then made local to the namespace of the file, this is due to several problems with handling configuration, mainly that exection would either result in a "this directive doesn't belong here" or a problem with the configuration not being built yet as in an EXEC_ON_READ.
+- Fixed <Tcl>...</Tcl>, these should be placed outside of <Directory>/<Location>
+directives.  Everything in <Tcl>...</Tcl> is added to a global variable and then
+made local to the namespace of the file, this is due to several problems with
+handling configuration, mainly that exection would either result in a "this
+directive doesn't belong here" or a problem with the configuration not being
+built yet as in an EXEC_ON_READ.
 - Fixed a bug in ap_create_environment.
-- Fixed a bug with writing <Tcl>...</Tcl> logic to the local namespace [2001032300]
+- Fixed a bug with writing <Tcl>...</Tcl> logic to the local namespace
+[2001032300]
 
 Changes in 1.0d6
 --------------------------------------------------------------------------------
 
-- ap_send_http_header no longer does anything so the command just returns TCL_OK which essentially makes it null, I'll probably get rid of it later.
+- ap_send_http_header no longer does anything so the command just returns TCL_OK
+which essentially makes it null, I'll probably get rid of it later.
 - made changes in league with Apache 2.0.14.  Handlers were moved around etc.
 
 Changes in 1.0d5
 --------------------------------------------------------------------------------
 
-- Configuration checks for mmap() and will use malloc(),read(),free() in that order to replace mmap() procedures.
-- Constants and commands are now placed in the ::apache namespace, so you must import that namespace into your scripts.
-- A test script is included with the distribution for testing and example purposes.  test_script.tm
-
-TODO
---------------------------------------------------------------------------------
-
-1. Add configuration documentation to README, add documentation regarding `r' and `r_set' commands.
-DONE 2. Possible addition of option to build shared object (.so) library.  (It appears Apache 2.0 has a configuration directive for this --enable-shared, but it appears to be not implemented yet...).
-3. A couple of hooks are broken (Apache bug?) the DECLINE causes the server to exit on signal 11 (SEGV).
-4. Add non-standard hooks?
-5. Add filters?
-6. libapreq (doesn't appear to be ported to 2.0 completley yet...)
-7. Decide what goals need to be acheived for release 1.0
-8. Make necessary changes along with Apache 2.0 revisions.
-9. Look into TCL threads.  A preliminary investigation to enabling TCL threads caused SEGVs randomly...?
+- Configuration checks for mmap() and will use malloc(),read(),free() in that
+order to replace mmap() procedures.
+- Constants and commands are now placed in the ::apache namespace, so you must
+import that namespace into your scripts.
+- A test script is included with the distribution for testing and example
+purposes.  test_script.tm
 
 Map
 --------------------------------------------------------------------------------
@@ -55,10 +68,10 @@ Map
 - 1.0d6 -| ap_send_http_header deprecated, updated to be peachy with
          | Apache 2.0.14
          |
-% 1.0d7 %| migration to Apache 2.0.16, fixed bugs
+- 1.0d7 -| migration to Apache 2.0.16, fixed bugs
          |
-- 1.0d8 -|
+% 1.0d8 %| remaining at 1.0d8 until Apache 2.0 is release quality.
          |
-- 1.0d9 -|
+- 1.0d9 -| stabalization with Apache 2.0 release API and bug fixes.
          |
-- 1.0.0 -|
+- 1.0.0 -| release.

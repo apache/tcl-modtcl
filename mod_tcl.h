@@ -72,7 +72,8 @@
 #include "http_protocol.h"
 #include "http_request.h"
 #include "util_script.h"
-#include "util_uri.h"
+//#include "util_uri.h"
+#include "apr_uri.h"
 
 #include "ap_config_auto.h"
 

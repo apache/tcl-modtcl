@@ -1,7 +1,70 @@
-% tar -zxf mod_tcl.tar.gz
-% mv mod_tcl apache_2.0a9/modules/.
-% cd apache_2.0a9
-% autoconf
-% autoheader
-% ./configure
-% make
+Mail bug reports to: general@tcl.apache.org
+
+
+mod_tcl 1.0d8-2001112900 INSTALL
+--------------------------------
+
+This installation refers to installing mod_tcl 1.0d8-2001112900 with
+Apache 2.0.28.  This installation document refers to no other versions
+of mod_tcl or Apache.
+
+1.  Ungzip and untar the mod_tcl.tar.gz file.
+    (tar -zxf mod_tcl.tar.gz)
+2.  Move the mod_tcl directory to the modules directory in the httpd
+    root.
+    (mv mod_tcl httpd-2_0_28/modules)
+3.  Change directory to the root level of the httpd distribution and run
+    the `autoconf' and `autoheader' commands.  You must have the
+    autoconf distribution installed, which is available from any GNU mirror.
+    (cd httpd-2_0_28;autoconf;autoheader)
+4.  Configure the make process by typing `./configure'.  You may include
+    other options.
+    (./configure)
+5.  Make the distribution and install it.
+    (make;make install)
+6.  At this point the compile and installation has completed and you
+    need to edit the httpd.conf file, this is usually located at
+    /usr/local/apache2/conf for a default install.
+    
+Sample httpd.conf entry for using mod_tcl in a VirtualHost statement
+--------------------------------------------------------------------
+
+<VirtualHost 206.9.161.23>
+    ServerName alpha-decay.com
+    ServerAlias www.alpha-decay.com
+
+    DocumentRoot "/export/web/alpha-decay.com"
+
+    <Directory /export/web/alpha-decay.com>
+        AddHandler tcl-handler tm
+        
+        Tcl_ContentHandler content_handler
+    </Directory>
+
+    <Directory />
+        Options FollowSymLinks
+        AllowOverride None
+    </Directory>
+
+    <Directory /export/web/alpha-decay.com/images>
+        SetHandler default-handler
+
+        Options Indexes FollowSymLinks
+
+        AllowOverride None
+
+        Order allow,deny
+        Allow from all
+    </Directory>
+
+    <Directory /export/web/alpha-decay.com/files>
+        SetHandler default-handler
+
+        Options Indexes FollowSymLinks
+
+        AllowOverride None
+
+        Order allow,deny
+        Allow from all
+     </Directory>
+</VirtualHost>
