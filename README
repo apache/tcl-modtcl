@@ -2,7 +2,8 @@ mod_tcl 1.0 Developer Documentation
 -----------------------------------
 
 This documentation referes to mod_tcl 1.0d7.
-Please see tcl.apache.org and www.fractal.net for more information.
+Please see tcl.apache.org for more information.
+
 
 Configuration Directives
 ------------------------
