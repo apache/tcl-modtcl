@@ -58,9 +58,9 @@
  
 #include "mod_tcl.h"
 
-static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp);
+static int tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp);
 static apr_status_t tcl_cleanup(void *data);
-static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s);
+static int tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s);
 static void* tcl_create_dir_config(apr_pool_t *p, char *d);
 
 /* 0  */ inline int tcl_handler(request_rec *r);
@@ -328,7 +328,7 @@ void set_varb(Tcl_Interp* interp, char *var1, char *var2, char *data, int len)
 	}
 }
 
-static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
+static int tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 {
 	char *buf;
 	
@@ -554,6 +554,8 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	}";
 	
 	run_script(interp, buf);
+
+	return OK;
 }
 
 static apr_status_t tcl_cleanup(void *data)
@@ -568,9 +570,11 @@ static apr_status_t tcl_cleanup(void *data)
 	return APR_SUCCESS;
 }
 
-static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
+static int tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d8-2001112900");
+	ap_add_version_component(pconf, "mod_tcl/1.0d8-2002030500");
+
+	return OK;
 }
 
 static int run_handler(request_rec *r, int hh)
