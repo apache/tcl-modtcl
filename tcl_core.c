@@ -74,14 +74,18 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d);
 /* 8  */ static int tcl_fixups(request_rec *r);
 /* 9  */ static int tcl_log_transaction(request_rec *r);
 
+/* 10 */ static int tcl_http_method(const request_rec *r);
+
 static const char* add_hand(cmd_parms *parms, void *mconfig, const char *arg);
 static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
 static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, const char *two, const char *three);
 static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one, const char *two);
+static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
+static const char *tcl_no_args(cmd_parms *parms, void *mconfig);
 
 typedef const char* (*fz_t)(void);
 
-#define NUM_HANDLERS 10
+#define NUM_HANDLERS 11
 
 static const command_rec tcl_commands[] = {
 	AP_INIT_FLAG(		"Tcl",							(fz_t) sfl,				(void*) 1,	OR_AUTHCFG,		"turn mod_tcl on or off." ),
@@ -97,6 +101,9 @@ static const command_rec tcl_commands[] = {
 	AP_INIT_TAKE1(		"Tcl_Hook_Type_Checker",		(fz_t) add_hand,		(void*) 7,	OR_AUTHCFG,		"add type_checker handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Fixups",				(fz_t) add_hand,		(void*) 8,	OR_AUTHCFG,		"add fixups handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Log_Transaction",		(fz_t) add_hand,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
+	AP_INIT_TAKE1(		"Tcl_Hook_HTTP_Method",			(fz_t) add_hand,		(void*) 10,	OR_AUTHCFG,		"add http_method handlers." ),
+	AP_INIT_RAW_ARGS(	"<Tcl>",						(fz_t) tcl_raw_args,	NULL,		OR_AUTHCFG,		"add raw tcl to the interpreter." ),
+	AP_INIT_NO_ARGS(	"</Tcl>",						(fz_t) tcl_no_args,		NULL,		OR_AUTHCFG,		"end of tcl section." ),
 	{ NULL }
 };
 
@@ -120,6 +127,10 @@ static void register_hooks(void)
 	ap_hook_fixups(tcl_fixups, NULL, NULL, AP_HOOK_MIDDLE);
 	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, AP_HOOK_MIDDLE);
 */
+
+/*
+	ap_hook_http_method(tcl_http_method, NULL, NULL, AP_HOOK_MIDDLE);
+*/
 }
 
 AP_DECLARE_DATA module tcl_module = {
@@ -142,6 +153,7 @@ typedef struct {
 	int					fl;
 	char				*handlers[NUM_HANDLERS];
 	apr_array_header_t	*var_list;
+	apr_array_header_t	*raw_list;
 } tcl_config_rec;
 
 static void* tcl_create_dir_config(apr_pool_t *p, char *d)
@@ -151,10 +163,9 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 	
 	tclr->fl		= 0;
 	tclr->var_list	= apr_make_array(p, 0, sizeof(var_cache));
+	tclr->raw_list	= apr_make_array(p, 0, sizeof(char*));
 	
-	for (i = 0; i < NUM_HANDLERS; i++) {
-		tclr->handlers[i] = NULL;
-	}
+	memset(tclr->handlers, 0, NUM_HANDLERS * sizeof(char*));
 	
 	return tclr;
 }
@@ -221,6 +232,53 @@ static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one,
 	return NULL;
 }
 
+static const char *tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg)
+{
+	tcl_config_rec *tclr = (tcl_config_rec*) mconfig;
+	char l[MAX_STRING_LEN];
+	char **line, *script, **xx;
+	int i, j = 0, k = 0;
+	apr_array_header_t *temp = apr_make_array(parms->pool, 0, sizeof(char*));
+	char **temp_elts = (char**) temp->elts;
+
+	while (!(ap_cfg_getline(l, MAX_STRING_LEN, parms->config_file))) {
+		if (!strncasecmp(l, "</Tcl>", 6)) {
+			goto cleanup;
+		}
+
+		line = (char**) apr_push_array(temp);
+		j += asprintf(line, l);
+		k++;
+	}
+	
+  cleanup:
+  
+	script = (char*) malloc(j + k + 1);
+	j = 0;
+	
+	for (i = 0; i < temp->nelts; i++) {
+		memcpy(&(script[j]), temp_elts[i], j += strlen(temp_elts[i]));
+		script[j] = '\n';
+		j++;
+		
+		free(temp_elts[i]);
+	}
+	
+	script[j] = '\0';
+	
+	xx = (char**) apr_push_array(tclr->raw_list);
+	*xx = apr_pstrdup(parms->pool, script);
+	
+	free(script);
+
+	return NULL;
+}
+
+static const char *tcl_no_args(cmd_parms *parms, void *dummy)
+{
+	return NULL;
+}
+
 void run_script(Tcl_Interp* interp, char *fmt, ...)
 {
 	char *bptr = NULL;
@@ -240,7 +298,7 @@ void run_script(Tcl_Interp* interp, char *fmt, ...)
 	free(bptr);
 }
 
-void set_var(Tcl_Interp* interp, const char *var1, const char *var2, const char *fmt, ...)
+void set_var(Tcl_Interp* interp, char *var1, char *var2, const char *fmt, ...)
 {
 	char *bptr;
 	va_list va;
@@ -252,20 +310,27 @@ void set_var(Tcl_Interp* interp, const char *var1, const char *var2, const char 
 	
 	obj = Tcl_NewStringObj(bptr, -1);
 	
-	if (Tcl_SetVar2Ex(interp, (char*) var1, (char*) var2, obj, TCL_LEAVE_ERR_MSG) == NULL) {
+	if (Tcl_SetVar2Ex(interp, var1, var2, obj, TCL_LEAVE_ERR_MSG) == NULL) {
 		ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, NULL, "Tcl_SetVarEx2(%s, %s, %s): %s", var1, var2 ? var2 : "NULL", bptr, Tcl_GetStringResult(interp));
 	}
 	
 	free(bptr);
 }
 
-void set_var2(Tcl_Interp* interp, const char *var1, const char *var2, const char *data, int len)
+void set_vari(Tcl_Interp* interp, char *var1, char *var2, int var)
+{	
+	if (Tcl_SetVar2Ex(interp, var1, var2, Tcl_NewIntObj(var), TCL_LEAVE_ERR_MSG) == NULL) {
+		ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, NULL, "Tcl_SetVarEx2(%s, %s, %d): %s", var1, var2 ? var2 : "NULL", var, Tcl_GetStringResult(interp));
+	}
+}
+
+void set_varb(Tcl_Interp* interp, char *var1, char *var2, char *data, int len)
 {
 	Tcl_Obj *obj;
 	
-	obj = Tcl_NewByteArrayObj((unsigned char*) data, len);
+	obj = Tcl_NewByteArrayObj(data, len);
 	
-	if (Tcl_SetVar2Ex(interp, (char*) var1, (char*) var2, obj, TCL_LEAVE_ERR_MSG) == NULL) {
+	if (Tcl_SetVar2Ex(interp, var1, var2, obj, TCL_LEAVE_ERR_MSG) == NULL) {
 		ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, NULL, "Tcl_SetVarEx2(%s, %s, %s): %s", var1, var2 ? var2 : "NULL", "*data*", Tcl_GetStringResult(interp));
 	}
 }
@@ -277,12 +342,14 @@ typedef struct {
 
 Tcl_Interp			*interp = NULL;
 apr_array_header_t	*fcache = NULL;
+apr_pool_t			*_pconf = NULL;
 request_rec			*_r = NULL;
 char				*current_namespace = NULL;
 int					read_post_ok;
 
 static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 {
+	_pconf = pconf;
 	fcache = apr_make_array(pconf, 0, sizeof(file_cache));
 	
 	interp = Tcl_CreateInterp();
@@ -294,80 +361,116 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	
 	apr_register_cleanup(pconf, NULL, tcl_cleanup, apr_null_cleanup);
 
-	set_var(interp, "BAD_REQUEST", NULL, "%d", HTTP_BAD_REQUEST);
-	set_var(interp, "DECLINED", NULL, "%d", DECLINED);
-	set_var(interp, "DONE", NULL, "%d", DONE);
-	set_var(interp, "NOT_FOUND", NULL, "%d", HTTP_NOT_FOUND);
-	set_var(interp, "OK", NULL, "%d", OK);
-	set_var(interp, "REDIRECT", NULL, "%d", HTTP_MOVED_TEMPORARILY);
-	set_var(interp, "SERVER_ERROR", NULL, "%d", HTTP_INTERNAL_SERVER_ERROR);
+	set_vari(interp, "DECLINED", NULL, DECLINED);
+	set_vari(interp, "DONE", NULL, DONE);
+	set_vari(interp, "OK", NULL, OK);
 	
-	set_var(interp, "M_POST", NULL, "%d", M_POST);
-	set_var(interp, "M_GET", NULL, "%d", M_GET);
-	set_var(interp, "M_PUT", NULL, "%d", M_PUT);
-	set_var(interp, "M_DELETE", NULL, "%d", M_DELETE);
-	set_var(interp, "M_CONNECT", NULL, "%d", M_CONNECT);
-	set_var(interp, "M_OPTIONS", NULL, "%d", M_OPTIONS);
-	set_var(interp, "M_TRACE", NULL, "%d", M_TRACE);
-	set_var(interp, "M_PATCH", NULL, "%d", M_PATCH);
-	set_var(interp, "M_PROPFIND", NULL, "%d", M_PROPFIND);
-	set_var(interp, "M_PROPPATCH", NULL, "%d", M_PROPPATCH);
-	set_var(interp, "M_MKCOL", NULL, "%d", M_MKCOL);
-	set_var(interp, "M_COPY", NULL, "%d", M_COPY);
-	set_var(interp, "M_MOVE", NULL, "%d", M_MOVE);
-	set_var(interp, "M_LOCK", NULL, "%d", M_LOCK);
-	set_var(interp, "M_UNLOCK", NULL, "%d", M_UNLOCK);
-	set_var(interp, "M_INVALID", NULL, "%d", M_INVALID);
+	/* legacy */
+	set_vari(interp, "BAD_REQUEST", NULL, HTTP_BAD_REQUEST);
+	set_vari(interp, "REDIRECT", NULL, HTTP_MOVED_TEMPORARILY);
+	set_vari(interp, "SERVER_ERROR", NULL, HTTP_INTERNAL_SERVER_ERROR);
+	set_vari(interp, "NOT_FOUND", NULL, HTTP_NOT_FOUND);
 	
-	set_var(interp, "HTTP_OK", NULL, "%d", HTTP_OK);
-	set_var(interp, "HTTP_CREATED", NULL, "%d", HTTP_CREATED);
-	set_var(interp, "HTTP_ACCEPTED", NULL, "%d", HTTP_ACCEPTED);
-	set_var(interp, "HTTP_NON_AUTHORITATIVE", NULL, "%d", HTTP_NON_AUTHORITATIVE);
-	set_var(interp, "HTTP_NO_CONTENT", NULL, "%d", HTTP_NO_CONTENT);
-	set_var(interp, "HTTP_PARTIAL_CONTENT", NULL, "%d", HTTP_PARTIAL_CONTENT);
-	set_var(interp, "HTTP_MULTIPLE_CHOICES", NULL, "%d", HTTP_MULTIPLE_CHOICES);
-	set_var(interp, "HTTP_MOVED_PERMANENTLY", NULL, "%d", HTTP_MOVED_PERMANENTLY);
-	set_var(interp, "HTTP_MOVED_TEMPORARILY", NULL, "%d", HTTP_MOVED_TEMPORARILY);
-	set_var(interp, "HTTP_NOT_MODIFIED", NULL, "%d", HTTP_NOT_MODIFIED);
-	set_var(interp, "HTTP_BAD_REQUEST", NULL, "%d", HTTP_BAD_REQUEST);
-	set_var(interp, "HTTP_UNAUTHORIZED", NULL, "%d", HTTP_UNAUTHORIZED);
-	set_var(interp, "HTTP_PAYMENT_REQUIRED", NULL, "%d", HTTP_PAYMENT_REQUIRED);
-	set_var(interp, "HTTP_FORBIDDEN", NULL, "%d", HTTP_FORBIDDEN);
-	set_var(interp, "HTTP_NOT_FOUND", NULL, "%d", HTTP_NOT_FOUND);
-	set_var(interp, "HTTP_METHOD_NOT_ALLOWED", NULL, "%d", HTTP_METHOD_NOT_ALLOWED);
-	set_var(interp, "HTTP_NOT_ACCEPTABLE", NULL, "%d", HTTP_NOT_ACCEPTABLE);
-	set_var(interp, "HTTP_PROXY_AUTHENTICATION_REQUIRED", NULL, "%d", HTTP_PROXY_AUTHENTICATION_REQUIRED);
-	set_var(interp, "HTTP_REQUEST_TIME_OUT", NULL, "%d", HTTP_REQUEST_TIME_OUT);
-	set_var(interp, "HTTP_GONE", NULL, "%d", HTTP_GONE);
-	set_var(interp, "HTTP_PRECONDITION_FAILED", NULL, "%d", HTTP_PRECONDITION_FAILED);
-	set_var(interp, "HTTP_REQUEST_ENTITY_TOO_LARGE", NULL, "%d", HTTP_REQUEST_ENTITY_TOO_LARGE);
-	set_var(interp, "HTTP_REQUEST_URI_TOO_LARGE", NULL, "%d", HTTP_REQUEST_URI_TOO_LARGE);
-	set_var(interp, "HTTP_UNSUPPORTED_MEDIA_TYPE", NULL, "%d", HTTP_UNSUPPORTED_MEDIA_TYPE);
-	set_var(interp, "HTTP_INTERNAL_SERVER_ERROR", NULL, "%d", HTTP_INTERNAL_SERVER_ERROR);
-	set_var(interp, "HTTP_NOT_IMPLEMENTED", NULL, "%d", HTTP_NOT_IMPLEMENTED);
-	set_var(interp, "HTTP_BAD_GATEWAY", NULL, "%d", HTTP_BAD_GATEWAY);
-	set_var(interp, "HTTP_SERVICE_UNAVAILABLE", NULL, "%d", HTTP_SERVICE_UNAVAILABLE);
-	set_var(interp, "HTTP_GATEWAY_TIME_OUT", NULL, "%d", HTTP_GATEWAY_TIME_OUT);
-	set_var(interp, "HTTP_VERSION_NOT_SUPPORTED", NULL, "%d", HTTP_VERSION_NOT_SUPPORTED);
-	set_var(interp, "HTTP_VARIANT_ALSO_VARIES", NULL, "%d", HTTP_VARIANT_ALSO_VARIES);
+	set_vari(interp, "M_POST", NULL, M_POST);
+	set_vari(interp, "M_GET", NULL, M_GET);
+	set_vari(interp, "M_PUT", NULL, M_PUT);
+	set_vari(interp, "M_DELETE", NULL, M_DELETE);
+	set_vari(interp, "M_CONNECT", NULL, M_CONNECT);
+	set_vari(interp, "M_OPTIONS", NULL, M_OPTIONS);
+	set_vari(interp, "M_TRACE", NULL, M_TRACE);
+	set_vari(interp, "M_PATCH", NULL, M_PATCH);
+	set_vari(interp, "M_PROPFIND", NULL, M_PROPFIND);
+	set_vari(interp, "M_PROPPATCH", NULL, M_PROPPATCH);
+	set_vari(interp, "M_MKCOL", NULL, M_MKCOL);
+	set_vari(interp, "M_COPY", NULL, M_COPY);
+	set_vari(interp, "M_MOVE", NULL, M_MOVE);
+	set_vari(interp, "M_LOCK", NULL, M_LOCK);
+	set_vari(interp, "M_UNLOCK", NULL, M_UNLOCK);
+	set_vari(interp, "M_INVALID", NULL, M_INVALID);
 	
-	set_var(interp, "REMOTE_HOST", NULL, "%d", REMOTE_HOST);
-	set_var(interp, "REMOTE_NAME", NULL, "%d", REMOTE_NAME);
-	set_var(interp, "REMOTE_NOLOOKUP", NULL, "%d", REMOTE_NOLOOKUP);
-	set_var(interp, "REMOTE_DOUBLE_REV", NULL, "%d", REMOTE_DOUBLE_REV);
+	set_vari(interp, "HTTP_CONTINUE", NULL, HTTP_CONTINUE);
+	set_vari(interp, "HTTP_SWITCHING_PROTOCOLS", NULL, HTTP_SWITCHING_PROTOCOLS);
+	set_vari(interp, "HTTP_PROCESSING", NULL, HTTP_PROCESSING);
+	set_vari(interp, "HTTP_OK", NULL, HTTP_OK);
+	set_vari(interp, "HTTP_CREATED", NULL, HTTP_CREATED);
+	set_vari(interp, "HTTP_ACCEPTED", NULL, HTTP_ACCEPTED);
+	set_vari(interp, "HTTP_NON_AUTHORITATIVE", NULL, HTTP_NON_AUTHORITATIVE);
+	set_vari(interp, "HTTP_NO_CONTENT", NULL, HTTP_NO_CONTENT);
+	set_vari(interp, "HTTP_RESET_CONTENT", NULL, HTTP_RESET_CONTENT);
+	set_vari(interp, "HTTP_PARTIAL_CONTENT", NULL, HTTP_PARTIAL_CONTENT);
+	set_vari(interp, "HTTP_MULTI_STATUS", NULL, HTTP_MULTI_STATUS);
+	set_vari(interp, "HTTP_MULTIPLE_CHOICES", NULL, HTTP_MULTIPLE_CHOICES);
+	set_vari(interp, "HTTP_MOVED_PERMANENTLY", NULL, HTTP_MOVED_PERMANENTLY);
+	set_vari(interp, "HTTP_MOVED_TEMPORARILY", NULL, HTTP_MOVED_TEMPORARILY);
+	set_vari(interp, "HTTP_SEE_OTHER", NULL, HTTP_SEE_OTHER);
+	set_vari(interp, "HTTP_NOT_MODIFIED", NULL, HTTP_NOT_MODIFIED);
+	set_vari(interp, "HTTP_USE_PROXY", NULL, HTTP_USE_PROXY);
+	set_vari(interp, "HTTP_TEMPORARY_REDIRECT", NULL, HTTP_TEMPORARY_REDIRECT);
+	set_vari(interp, "HTTP_BAD_REQUEST", NULL, HTTP_BAD_REQUEST);
+	set_vari(interp, "HTTP_UNAUTHORIZED", NULL, HTTP_UNAUTHORIZED);
+	set_vari(interp, "HTTP_PAYMENT_REQUIRED", NULL, HTTP_PAYMENT_REQUIRED);
+	set_vari(interp, "HTTP_FORBIDDEN", NULL, HTTP_FORBIDDEN);
+	set_vari(interp, "HTTP_NOT_FOUND", NULL, HTTP_NOT_FOUND);
+	set_vari(interp, "HTTP_METHOD_NOT_ALLOWED", NULL, HTTP_METHOD_NOT_ALLOWED);
+	set_vari(interp, "HTTP_NOT_ACCEPTABLE", NULL, HTTP_NOT_ACCEPTABLE);
+	set_vari(interp, "HTTP_PROXY_AUTHENTICATION_REQUIRED", NULL, HTTP_PROXY_AUTHENTICATION_REQUIRED);
+	set_vari(interp, "HTTP_REQUEST_TIME_OUT", NULL, HTTP_REQUEST_TIME_OUT);
+	set_vari(interp, "HTTP_CONFLICT", NULL, HTTP_CONFLICT);
+	set_vari(interp, "HTTP_GONE", NULL, HTTP_GONE);
+	set_vari(interp, "HTTP_LENGTH_REQUIRED", NULL, HTTP_LENGTH_REQUIRED);
+	set_vari(interp, "HTTP_PRECONDITION_FAILED", NULL, HTTP_PRECONDITION_FAILED);
+	set_vari(interp, "HTTP_REQUEST_ENTITY_TOO_LARGE", NULL, HTTP_REQUEST_ENTITY_TOO_LARGE);
+	set_vari(interp, "HTTP_REQUEST_URI_TOO_LARGE", NULL, HTTP_REQUEST_URI_TOO_LARGE);
+	set_vari(interp, "HTTP_UNSUPPORTED_MEDIA_TYPE", NULL, HTTP_UNSUPPORTED_MEDIA_TYPE);
+	set_vari(interp, "HTTP_RANGE_NOT_SATISFIABLE", NULL, HTTP_RANGE_NOT_SATISFIABLE);
+	set_vari(interp, "HTTP_EXPECTATION_FAILED", NULL, HTTP_EXPECTATION_FAILED);
+	set_vari(interp, "HTTP_UNPROCESSABLE_ENTITY", NULL, HTTP_UNPROCESSABLE_ENTITY);
+	set_vari(interp, "HTTP_LOCKED", NULL, HTTP_LOCKED);
+	set_vari(interp, "HTTP_FAILED_DEPENDENCY", NULL, HTTP_FAILED_DEPENDENCY);
+	set_vari(interp, "HTTP_INTERNAL_SERVER_ERROR", NULL, HTTP_INTERNAL_SERVER_ERROR);
+	set_vari(interp, "HTTP_NOT_IMPLEMENTED", NULL, HTTP_NOT_IMPLEMENTED);
+	set_vari(interp, "HTTP_BAD_GATEWAY", NULL, HTTP_BAD_GATEWAY);
+	set_vari(interp, "HTTP_SERVICE_UNAVAILABLE", NULL, HTTP_SERVICE_UNAVAILABLE);
+	set_vari(interp, "HTTP_GATEWAY_TIME_OUT", NULL, HTTP_GATEWAY_TIME_OUT);
+	set_vari(interp, "HTTP_VERSION_NOT_SUPPORTED", NULL, HTTP_VERSION_NOT_SUPPORTED);
+	set_vari(interp, "HTTP_VARIANT_ALSO_VARIES", NULL, HTTP_VARIANT_ALSO_VARIES);
+	set_vari(interp, "HTTP_INSUFFICIENT_STORAGE", NULL, HTTP_INSUFFICIENT_STORAGE);
+	set_vari(interp, "HTTP_NOT_EXTENDED", NULL, HTTP_NOT_EXTENDED);
 	
+	set_vari(interp, "REMOTE_HOST", NULL, REMOTE_HOST);
+	set_vari(interp, "REMOTE_NAME", NULL, REMOTE_NAME);
+	set_vari(interp, "REMOTE_NOLOOKUP", NULL, REMOTE_NOLOOKUP);
+	set_vari(interp, "REMOTE_DOUBLE_REV", NULL, REMOTE_DOUBLE_REV);
+	
+	set_vari(interp, "APLOG_EMERG", NULL, APLOG_EMERG);
+	set_vari(interp, "APLOG_ALERT", NULL, APLOG_ALERT);
+	set_vari(interp, "APLOG_CRIT", NULL, APLOG_CRIT);
+	set_vari(interp, "APLOG_ERR", NULL, APLOG_ERR);
+	set_vari(interp, "APLOG_WARNING", NULL, APLOG_WARNING);
+	set_vari(interp, "APLOG_NOTICE", NULL, APLOG_NOTICE);
+	set_vari(interp, "APLOG_INFO", NULL, APLOG_INFO);
+	set_vari(interp, "APLOG_DEBUG", NULL, APLOG_DEBUG);
+	set_vari(interp, "APLOG_NOERRNO", NULL, APLOG_NOERRNO);
+
+	set_vari(interp, "REQUEST_NO_BODY", NULL, REQUEST_NO_BODY);
+	set_vari(interp, "REQUEST_CHUNKED_ERROR", NULL, REQUEST_CHUNKED_ERROR);
+	set_vari(interp, "REQUEST_CHUNKED_DECHUNK", NULL, REQUEST_CHUNKED_DECHUNK);
+	
+	/* misc util */
+	Tcl_CreateObjCommand(interp, "abort", cmd_abort, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "read_post", cmd_read_post, NULL, NULL);
+	
+	Tcl_CreateObjCommand(interp, "random", cmd_random, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "srandom", cmd_srandom, NULL, NULL);
+	
+	Tcl_CreateObjCommand(interp, "base64_encode", cmd_base64_encode, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "base64_decode", cmd_base64_decode, NULL, NULL);
+	
+	/* read and set stuff from request_rec */
 	Tcl_CreateObjCommand(interp, "r", cmd_r, NULL, NULL);
 	Tcl_CreateObjCommand(interp, "r_set", cmd_r_set, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "rputs", cmd_rputs, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "rwrite", cmd_rwrite, NULL, NULL);
 	
-	/* sort this out later */
-	Tcl_CreateObjCommand(interp, "ap_internal_redirect", cmd_ap_internal_redirect, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_send_http_header", cmd_ap_send_http_header, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_server_version", cmd_ap_get_server_version, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_create_environment", cmd_ap_create_environment, NULL, NULL);
-	
-	/* stuff from http_core.h */
+	/* http_core.h */
 	Tcl_CreateObjCommand(interp, "ap_allow_options", cmd_ap_allow_options, NULL, NULL);
 	Tcl_CreateObjCommand(interp, "ap_allow_overrides", cmd_ap_allow_overrides, NULL, NULL);
 	Tcl_CreateObjCommand(interp, "ap_default_type", cmd_ap_default_type, NULL, NULL);
@@ -386,14 +489,56 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	Tcl_CreateObjCommand(interp, "ap_satisfies", cmd_ap_satisfies, NULL, NULL);
 	Tcl_CreateObjCommand(interp, "ap_requires", cmd_ap_requires, NULL, NULL);
 	
-	Tcl_CreateObjCommand(interp, "abort", cmd_abort, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "read_post", cmd_read_post, NULL, NULL);
+	/* http_log.h */
+	Tcl_CreateObjCommand(interp, "ap_log_error", cmd_ap_log_error, NULL, NULL);
 	
-	Tcl_CreateObjCommand(interp, "random", cmd_random, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "srandom", cmd_srandom, NULL, NULL);
+	/* http_protocol.h */
+	Tcl_CreateObjCommand(interp, "ap_send_http_header", cmd_ap_send_http_header, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_send_http_trace", cmd_ap_send_http_trace, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_send_http_options", cmd_ap_send_http_options, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_finalize_request_protocol", cmd_ap_finalize_request_protocol, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_send_error_response", cmd_ap_send_error_response, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_set_content_length", cmd_ap_set_content_length, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_set_keepalive", cmd_ap_set_keepalive, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_rationalize_mtime", cmd_ap_rationalize_mtime, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_make_etag", cmd_ap_make_etag, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_set_etag", cmd_ap_set_etag, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_set_last_modified", cmd_ap_set_last_modified, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_meets_conditions", cmd_ap_meets_conditions, NULL, NULL);
+	/**/
+	Tcl_CreateObjCommand(interp, "rputs", cmd_rputs, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "rwrite", cmd_rwrite, NULL, NULL);
+	/**/
+	Tcl_CreateObjCommand(interp, "ap_rputs", cmd_rputs, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_rwrite", cmd_rwrite, NULL, NULL);
+	/**/
+	Tcl_CreateObjCommand(interp, "ap_rflush", cmd_ap_rflush, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_get_status_line", cmd_ap_get_status_line, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_setup_client_block", cmd_ap_setup_client_block, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_get_client_block", cmd_ap_get_client_block, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_discard_request_body", cmd_ap_discard_request_body, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_note_auth_failure", cmd_ap_note_auth_failure, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_note_basic_auth_failure", cmd_ap_note_basic_auth_failure, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_note_digest_auth_failure", cmd_ap_note_digest_auth_failure, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_get_basic_auth_pw", cmd_ap_get_basic_auth_pw, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_parse_uri", cmd_ap_parse_uri, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_method_number_of", cmd_ap_method_number_of, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_method_name_of", cmd_ap_method_name_of, NULL, NULL);
+
+	/* http_request.h */
+	Tcl_CreateObjCommand(interp, "ap_internal_redirect", cmd_ap_internal_redirect, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_internal_redirect_handler", cmd_ap_internal_redirect_handler, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_some_auth_required", cmd_ap_some_auth_required, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_update_mtime", cmd_ap_update_mtime, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_allow_methods", cmd_ap_allow_methods, NULL, NULL);
+
+	/* httpd.h */
+	Tcl_CreateObjCommand(interp, "ap_get_server_version", cmd_ap_get_server_version, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_add_version_component", cmd_ap_add_version_component, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "ap_get_server_built", cmd_ap_get_server_built, NULL, NULL);
 	
-	Tcl_CreateObjCommand(interp, "base64_encode", cmd_base64_encode, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "base64_decode", cmd_base64_decode, NULL, NULL);
+	/* util_script.h */
+	Tcl_CreateObjCommand(interp, "ap_create_environment", cmd_ap_create_environment, NULL, NULL);
 	
 	// provided
 	{
@@ -425,7 +570,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d1");
+	ap_add_version_component(pconf, "mod_tcl/1.0d3");
 }
 
 static int run_handler(request_rec *r, int hh)
@@ -435,6 +580,7 @@ static int run_handler(request_rec *r, int hh)
 	size_t flen = strlen(r->filename);
 	file_cache *fptr = NULL, *fa = (file_cache*) fcache->elts;
 	var_cache *vl = (var_cache*) tclr->var_list->elts;
+	char **rl = (char**) tclr->raw_list->elts;
 	struct stat st;
 	
 	if (!(tclr->fl & 1) || !interp) {
@@ -508,6 +654,27 @@ static int run_handler(request_rec *r, int hh)
 				sprintf(namespc, "%s::%s", r->filename, vl[i].var1);
 				run_script(interp, "lappend %s %s", namespc, vl[i].var2);
 				free(namespc);
+			}
+		}
+		
+		for (i = 0, pos = 0; i < tclr->raw_list->nelts; i++) {
+			int rl_len = strlen(rl[i]);
+			
+			bptr = (char*) malloc(rl_len + flen + 21);
+			
+			memcpy(bptr, "namespace eval ", 15);		pos += 15;
+			memcpy(bptr + pos, r->filename, flen);		pos += flen;
+			memcpy(bptr + pos, " {\n", 3);				pos += 3;
+			memcpy(bptr + pos, rl[i], rl_len);			pos += rl_len;
+			memcpy(bptr + pos, "\n}\0", 3);
+			
+			obj = Tcl_NewStringObj(bptr, -1);
+			
+			free(bptr);
+			
+			if (Tcl_EvalObjEx(interp, obj, 0) == TCL_ERROR) {
+				ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, r->server, "Tcl_EvalObjEx(...): %s\n%s", Tcl_GetStringResult(interp), Tcl_GetVar(interp, "errorInfo", 0));
+				return HTTP_INTERNAL_SERVER_ERROR;
 			}
 		}
 	}
@@ -631,3 +798,8 @@ static int tcl_log_transaction(request_rec *r)
 	return run_handler(r, 9);
 }
 
+static int tcl_http_method(const request_rec *r)
+{
+	/* this isn't nice at all!!! */
+	return run_handler((request_rec*) r, 10);
+}

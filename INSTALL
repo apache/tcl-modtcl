@@ -1,0 +1,7 @@
+% tar -zxf mod_tcl.tar.gz
+% mv mod_tcl apache_2.0a9/modules/.
+% cd apache_2.0a9
+% autoconf
+% autoheader
+% ./configure
+% make

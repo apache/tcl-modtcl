@@ -93,6 +93,7 @@
 #include "http_protocol.h"
 #include "http_request.h"
 #include "util_script.h"
+#include "util_uri.h"
 
 #include "ap_config_auto.h"
 
@@ -109,23 +110,20 @@ int asprintf(char **result, const char *format, ...);
 #endif /* HAVE_ASPRINTF */
 
 void run_script(Tcl_Interp *interp, char *fmt, ...);
-void set_var(Tcl_Interp *interp, const char *var1, const char *var2, const char *fmt, ...);
-void set_var2(Tcl_Interp *interp, const char *var1, const char *var2, const char *data, int len);
+void set_var(Tcl_Interp *interp, char *var1, char *var2, const char *fmt, ...);
+void set_vari(Tcl_Interp* interp, char *var1, char *var2, int var);
+void set_varb(Tcl_Interp *interp, char *var1, char *var2, char *data, int len);
 
-int cmd_rputs(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
-int cmd_rwrite(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
-int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_r(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_r_set(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_read_post(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
-int cmd_ap_get_server_version(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
-int cmd_ap_create_environment(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_abort(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
-int cmd_ap_internal_redirect(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_random(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_srandom(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_base64_encode(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_base64_decode(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+
+/* http_core.h */
 int cmd_ap_allow_options(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_ap_allow_overrides(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_ap_default_type(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
@@ -143,5 +141,51 @@ int cmd_ap_auth_type(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST ob
 int cmd_ap_auth_name(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_ap_satisfies(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 int cmd_ap_requires(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+
+/* http_log.h */
+int cmd_ap_log_error(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+
+/* http_protocol.h */
+int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_send_http_trace(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_send_http_options(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_finalize_request_protocol(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_send_error_response(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_set_content_length(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_set_keepalive(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_rationalize_mtime(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_make_etag(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_set_etag(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_set_last_modified(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_meets_conditions(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_rputs(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_rwrite(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_rflush(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_get_status_line(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_setup_client_block(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_get_client_block(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_discard_request_body(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_note_auth_failure(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_note_basic_auth_failure(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_note_digest_auth_failure(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_get_basic_auth_pw(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_parse_uri(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_method_number_of(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_method_name_of(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+
+/* http_request.h */
+int cmd_ap_internal_redirect(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_internal_redirect_handler(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_some_auth_required(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_update_mtime(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_allow_methods(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+
+/* httpd.h */
+int cmd_ap_get_server_version(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_add_version_component(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+int cmd_ap_get_server_built(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
+
+/* util_script.h */
+int cmd_ap_create_environment(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[]);
 
 #endif /* __MOD_TCL_H__ */
