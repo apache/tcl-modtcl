@@ -95,14 +95,14 @@ static const command_rec tcl_commands[] = {
 	
 	AP_INIT_TAKE2(		"Tcl_Hook_Post_Read_Request",	/*(fz_t)*/ add_hand2,		(void*) 0,	OR_AUTHCFG,		"add post_read_request handlers." ),
 	AP_INIT_TAKE2(		"Tcl_Hook_Translate_Name",		/*(fz_t)*/ add_hand2,		(void*) 1,	OR_AUTHCFG,		"add translate_name handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Header_Parser",		/*(fz_t)*/ add_hand1,		(void*) 2,	OR_AUTHCFG,		"add header_parser handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Access_Checker",		/*(fz_t)*/ add_hand1,		(void*) 3,	OR_AUTHCFG,		"add access_checker handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Check_User_ID",		/*(fz_t)*/ add_hand1,		(void*) 4,	OR_AUTHCFG,		"add check_user_id handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Auth_Checker",		/*(fz_t)*/ add_hand1,		(void*) 5,	OR_AUTHCFG,		"add auth_checker handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Type_Checker",		/*(fz_t)*/ add_hand1,		(void*) 6,	OR_AUTHCFG,		"add type_checker handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Fixups",				/*(fz_t)*/ add_hand1,		(void*) 7,	OR_AUTHCFG,		"add fixups handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Header_Parser",		/*(fz_t)*/ add_hand2,		(void*) 2,	OR_AUTHCFG,		"add header_parser handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Access_Checker",		/*(fz_t)*/ add_hand2,		(void*) 3,	OR_AUTHCFG,		"add access_checker handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Check_User_ID",		/*(fz_t)*/ add_hand2,		(void*) 4,	OR_AUTHCFG,		"add check_user_id handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Auth_Checker",		/*(fz_t)*/ add_hand2,		(void*) 5,	OR_AUTHCFG,		"add auth_checker handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Type_Checker",		/*(fz_t)*/ add_hand2,		(void*) 6,	OR_AUTHCFG,		"add type_checker handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Fixups",				/*(fz_t)*/ add_hand2,		(void*) 7,	OR_AUTHCFG,		"add fixups handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Handler",				/*(fz_t)*/ add_hand1,		(void*) 8,	OR_AUTHCFG,		"add content handler." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_Log_Transaction",		/*(fz_t)*/ add_hand1,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
+	AP_INIT_TAKE2(		"Tcl_Hook_Log_Transaction",		/*(fz_t)*/ add_hand2,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
 //	AP_INIT_RAW_ARGS(	"<Tcl>",						/*(fz_t)*/ tcl_raw_args,	NULL,		RSRC_CONF|EXEC_ON_READ,		"add raw tcl to the interpreter." ),
 	{ NULL }
 };
@@ -142,7 +142,7 @@ typedef struct {
 typedef struct {
 	int					fl;
 	char				*handlers[10];
-	char				*file_location[2];
+	char				*file_location[10];
 	apr_array_header_t	*var_list;
 } tcl_config_rec;
 
@@ -168,7 +168,7 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 	tclr->var_list	= apr_array_make(p, 0, sizeof(var_cache));
 	
 	memset(tclr->handlers, 0, 10 * sizeof(char*));
-	memset(tclr->file_location, 0, 2 * sizeof(char*));
+	memset(tclr->file_location, 0, 10 * sizeof(char*));
 	
 	return tclr;
 }
@@ -554,7 +554,7 @@ static int tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	}";
 	
 	run_script(interp, buf);
-
+	
 	return OK;
 }
 
@@ -572,8 +572,8 @@ static apr_status_t tcl_cleanup(void *data)
 
 static int tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d8-2002030500");
-
+	ap_add_version_component(pconf, "mod_tcl/1.0d8-2002031000");
+	
 	return OK;
 }
 
@@ -585,6 +585,7 @@ static int run_handler(request_rec *r, int hh)
 	file_cache *fptr = NULL, *fa = (file_cache*) fcache->elts;
 	var_cache *vl = (var_cache*) tclr->var_list->elts;
 	struct stat st;
+	char *tmp_filename;
 	
 	if (!interp) {
 		return DECLINED;
@@ -595,7 +596,14 @@ static int run_handler(request_rec *r, int hh)
 		return DECLINED;
 	}
 	
-	if (hh < 2) {
+	if (hh != 8) {
+		if (hh < 2) {
+			tmp_filename = tclr->file_location[hh];
+		}
+		else {
+			tmp_filename = r->filename;
+		}
+		
 		/* this will be rewritten by some translation... */
 		r->filename = tclr->file_location[hh];
 	}
@@ -763,6 +771,8 @@ static int run_handler(request_rec *r, int hh)
 		Tcl_GetIntFromObj(interp, Tcl_GetObjResult(interp), &xx);
 	}
 	
+	r->filename = tmp_filename;
+	
 	return xx;
 }
 
@@ -805,7 +815,6 @@ inline int tcl_fixups(request_rec *r)
 {
 	return run_handler(r, 7);
 }
-
 
 inline int tcl_handler(request_rec *r)
 {
