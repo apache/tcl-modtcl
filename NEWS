@@ -1,3 +1,8 @@
+Changes in 1.0d7
+--------------------------------------------------------------------------------
+- Fixed <Tcl>...</Tcl>, these should be placed outside of <Directory>/<Location> directives.  Everything in <Tcl>...</Tcl> is added to a global variable and then made local to the namespace of the file, this is due to several problems with handling configuration, mainly that exection would either result in a "this directive doesn't belong here" or a problem with the configuration not being built yet as in an EXEC_ON_READ.
+- Fixed a bug in ap_create_environment.
+
 Changes in 1.0d6
 --------------------------------------------------------------------------------
 
@@ -15,7 +20,7 @@ TODO
 --------------------------------------------------------------------------------
 
 1. Add configuration documentation to README, add documentation regarding `r' and `r_set' commands.
-2. Possible addition of option to build shared object (.so) library.  (It appears Apache 2.0 has a configuration directive for this --enable-shared, but it appears to be not implemented yet...).
+DONE 2. Possible addition of option to build shared object (.so) library.  (It appears Apache 2.0 has a configuration directive for this --enable-shared, but it appears to be not implemented yet...).
 3. A couple of hooks are broken (Apache bug?) the DECLINE causes the server to exit on signal 11 (SEGV).
 4. Add non-standard hooks?
 5. Add filters?
@@ -40,10 +45,10 @@ Map
 - 1.0d5 -| constants commands in ::apache namespace, mmap checking, test
          | script
          |
-* 1.0d6 *| ap_send_http_header deprecated, updated to be peachy with
+- 1.0d6 -| ap_send_http_header deprecated, updated to be peachy with
          | Apache 2.0.14
          |
-- 1.0d7 -|
+% 1.0d7 %| we're still here, just a pre-release
          |
 - 1.0d8 -|
          |

@@ -79,7 +79,6 @@ static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
 static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, const char *two, const char *three);
 static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one, const char *two);
 static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
-static const char* tcl_no_args(cmd_parms *parms, void *mconfig);
 
 typedef const char* (*fz_t)(void);
 
@@ -89,7 +88,7 @@ static const command_rec tcl_commands[] = {
 	AP_INIT_FLAG(		"Tcl",							(fz_t) sfl,				(void*) 1,	OR_AUTHCFG,		"turn mod_tcl on or off." ),
 	AP_INIT_TAKE23(		"Tcl_Var",						(fz_t) tcl_set,			NULL,		OR_AUTHCFG,		"set global variables in TCL." ),
 	AP_INIT_TAKE2(		"Tcl_ListVar",					(fz_t) tcl_setlist,		NULL,		OR_AUTHCFG,		"set global list variables." ),
-	
+
 	/* this may be phased out, it should now be, Tcl_ContentHandler */
 	AP_INIT_TAKE1(		"Tcl_ContentHandlers",			(fz_t) add_hand,		(void*) 0,	OR_AUTHCFG,		"add content handler." ),
 	
@@ -103,8 +102,7 @@ static const command_rec tcl_commands[] = {
 	AP_INIT_TAKE1(		"Tcl_Hook_Type_Checker",		(fz_t) add_hand,		(void*) 7,	OR_AUTHCFG,		"add type_checker handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Fixups",				(fz_t) add_hand,		(void*) 8,	OR_AUTHCFG,		"add fixups handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Log_Transaction",		(fz_t) add_hand,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
-	AP_INIT_RAW_ARGS(	"<Tcl>",						(fz_t) tcl_raw_args,	NULL,		OR_AUTHCFG,		"add raw tcl to the interpreter." ),
-	AP_INIT_NO_ARGS(	"</Tcl>",						(fz_t) tcl_no_args,		NULL,		OR_AUTHCFG,		"end of tcl section." ),
+	AP_INIT_RAW_ARGS(	"<Tcl>",						(fz_t) tcl_raw_args,	NULL,		RSRC_CONF|EXEC_ON_READ,		"add raw tcl to the interpreter." ),
 	{ NULL }
 };
 
@@ -113,16 +111,16 @@ static void register_hooks(apr_pool_t *p)
 	ap_hook_pre_config(tcl_init, NULL, NULL, APR_HOOK_REALLY_FIRST);
 	ap_hook_post_config(tcl_init_handler, NULL, NULL, APR_HOOK_MIDDLE);
 	
-//	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, APR_HOOK_MIDDLE);
-//	ap_hook_translate_name(tcl_translate_name, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_header_parser(tcl_header_parser, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_access_checker(tcl_access_checker, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_auth_checker(tcl_auth_checker, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_type_checker(tcl_type_checker, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_fixups(tcl_fixups, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_handler(tcl_handler, NULL, NULL, APR_HOOK_MIDDLE);
-	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, APR_HOOK_MIDDLE);
+//	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, APR_HOOK_FIRST);
+//	ap_hook_translate_name(tcl_translate_name, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_header_parser(tcl_header_parser, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_access_checker(tcl_access_checker, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_auth_checker(tcl_auth_checker, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_type_checker(tcl_type_checker, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_fixups(tcl_fixups, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_handler(tcl_handler, NULL, NULL, APR_HOOK_FIRST);
+	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, APR_HOOK_FIRST);
 }
 
 AP_DECLARE_DATA module tcl_module = {
@@ -144,8 +142,20 @@ typedef struct {
 	int					fl;
 	char				*handlers[NUM_HANDLERS];
 	apr_array_header_t	*var_list;
-	apr_array_header_t	*raw_list;
 } tcl_config_rec;
+
+typedef struct {
+	char			*file;
+	struct stat		st;
+} file_cache;
+
+Tcl_Interp			*interp = NULL;
+apr_array_header_t	*fcache = NULL;
+char				*raw_tcl = NULL;
+apr_pool_t			*_pconf = NULL;
+request_rec			*_r = NULL;
+char				*current_namespace = NULL;
+int					read_post_ok;
 
 static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 {
@@ -154,7 +164,6 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 	
 	tclr->fl		= 0;
 	tclr->var_list	= apr_array_make(p, 0, sizeof(var_cache));
-	tclr->raw_list	= apr_array_make(p, 0, sizeof(char*));
 	
 	memset(tclr->handlers, 0, NUM_HANDLERS * sizeof(char*));
 	
@@ -223,50 +232,24 @@ static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one,
 	return NULL;
 }
 
-static const char *tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg)
+static const char* tcl_raw_args(cmd_parms *cmd, void *mconfig, char *arg)
 {
-	tcl_config_rec *tclr = (tcl_config_rec*) mconfig;
+	char **xx, *z = apr_pstrdup(cmd->pool, "");
 	char l[MAX_STRING_LEN];
-	char **line, *script, **xx;
-	int i, j = 0, k = 0;
-	apr_array_header_t *temp = apr_array_make(parms->pool, 0, sizeof(char*));
-	char **temp_elts = (char**) temp->elts;
-
-	while (!(ap_cfg_getline(l, MAX_STRING_LEN, parms->config_file))) {
+    
+    while (!(ap_cfg_getline(l, MAX_STRING_LEN, cmd->config_file))) {
 		if (!strncasecmp(l, "</Tcl>", 6)) {
-			goto cleanup;
+			break;
 		}
-
-		line = (char**) apr_array_push(temp);
-		j += asprintf(line, l);
-		k++;
-	}
-	
-  cleanup:
-  
-	script = (char*) malloc(j + k + 1);
-	j = 0;
-	
-	for (i = 0; i < temp->nelts; i++) {
-		memcpy(&(script[j]), temp_elts[i], j += strlen(temp_elts[i]));
-		script[j] = '\n';
-		j++;
 		
-		free(temp_elts[i]);
-	}
+    	/* ick */
+    	z = apr_pstrcat(cmd->pool, z, l, "\n", NULL);
+    }
 	
-	script[j] = '\0';
+	/* ick */
+	raw_tcl = realloc(raw_tcl, strlen(z) + 1);
+	strcat(raw_tcl, z);
 	
-	xx = (char**) apr_array_push(tclr->raw_list);
-	*xx = apr_pstrdup(parms->pool, script);
-	
-	free(script);
-
-	return NULL;
-}
-
-static const char *tcl_no_args(cmd_parms *parms, void *dummy)
-{
 	return NULL;
 }
 
@@ -325,18 +308,6 @@ void set_varb(Tcl_Interp* interp, char *var1, char *var2, char *data, int len)
 		ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, NULL, "Tcl_SetVarEx2(%s, %s, %s): %s", var1, var2 ? var2 : "NULL", "*data*", Tcl_GetStringResult(interp));
 	}
 }
-
-typedef struct {
-	char			*file;
-	struct stat		st;
-} file_cache;
-
-Tcl_Interp			*interp = NULL;
-apr_array_header_t	*fcache = NULL;
-apr_pool_t			*_pconf = NULL;
-request_rec			*_r = NULL;
-char				*current_namespace = NULL;
-int					read_post_ok;
 
 static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 {
@@ -438,7 +409,7 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	/* util_script.h */
 	Tcl_CreateObjCommand(interp, "apache::ap_create_environment", cmd_ap_create_environment, NULL, NULL);
 	
-	// provided nasty
+	/* output script */
 	buf = "\
 	proc apache::output { script } {\n\
 		set script [split $script \\n]\n\
@@ -451,6 +422,16 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 		}\n\
 	}";
 						
+	run_script(interp, buf);
+	
+	/* built-in null handler for cancelling out previously defined handlers in parent directories */
+	buf = "\
+	proc apache::null_handler { } {\n\
+		variable DECLINED\n\
+		\n\
+		return $DECLINED\n\
+	}";
+	
 	run_script(interp, buf);
 
 	set_vari(interp, "apache::DECLINED", NULL, DECLINED);
@@ -568,7 +549,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d6");
+	ap_add_version_component(pconf, "mod_tcl/1.0dPRE7-2001032000");
 }
 
 static int run_handler(request_rec *r, int hh)
@@ -578,7 +559,6 @@ static int run_handler(request_rec *r, int hh)
 	size_t flen = strlen(r->filename);
 	file_cache *fptr = NULL, *fa = (file_cache*) fcache->elts;
 	var_cache *vl = (var_cache*) tclr->var_list->elts;
-	char **rl = (char**) tclr->raw_list->elts;
 	struct stat st;
 	
 	if (!(tclr->fl & 1) || !interp) {
@@ -666,26 +646,7 @@ static int run_handler(request_rec *r, int hh)
 			}
 		}
 		
-		for (i = 0, pos = 0; i < tclr->raw_list->nelts; i++) {
-			int rl_len = strlen(rl[i]);
-			
-			bptr = (char*) malloc(rl_len + flen + 21);
-			
-			memcpy(bptr, "namespace eval ", 15);		pos += 15;
-			memcpy(bptr + pos, r->filename, flen);		pos += flen;
-			memcpy(bptr + pos, " {\n", 3);				pos += 3;
-			memcpy(bptr + pos, rl[i], rl_len);			pos += rl_len;
-			memcpy(bptr + pos, "\n}\0", 3);
-			
-			obj = Tcl_NewStringObj(bptr, -1);
-			
-			free(bptr);
-			
-			if (Tcl_EvalObjEx(interp, obj, 0) == TCL_ERROR) {
-				ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, r->server, "Tcl_EvalObjEx(...): %s\n%s", Tcl_GetStringResult(interp), Tcl_GetVar(interp, "errorInfo", 0));
-				return HTTP_INTERNAL_SERVER_ERROR;
-			}
-		}
+		run_script(interp, "namespace eval %s { %s }", r->filename, raw_tcl);
 	}
 	else if (st.st_mtime > fptr->st.st_mtime) {
 		int fd;
@@ -703,7 +664,7 @@ static int run_handler(request_rec *r, int hh)
 		mptr = mmap((caddr_t) 0, r->finfo.size, PROT_READ, MAP_SHARED, fd, 0);
 #else
 		mptr = malloc(r->finfo.size);
-		read(fd, mptr, f->finfo.size);
+		read(fd, mptr, r->finfo.size);
 #endif /* HAVE_MMAP */
 
 		bptr = malloc(r->finfo.size + flen + 21);

@@ -2222,7 +2222,7 @@ int cmd_ap_create_environment(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 	char **env, *nm_env;
 	int i;
 	
-	asprintf(&nm_env, "%s::env", _r->filename);
+	asprintf(&nm_env, "::%s::env", _r->filename);
 	
 	ap_add_cgi_vars(_r);
 	ap_add_common_vars(_r);
