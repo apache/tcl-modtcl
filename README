@@ -8,7 +8,7 @@ SunOS-5.9/gcc-3.1.1/tcl-8.4b1/Apache-2.0.40
 Documentation
 -------------
 
-See the INSTALL file.
+See http://tcl.apache.org/mod_tcl/
 
 tcl_core.c:
   core routines, handlers, configuration, initialization
