@@ -1,3 +1,9 @@
+Changes in 1.0d6
+--------------------------------------------------------------------------------
+
+- ap_send_http_header no longer does anything so the command just returns TCL_OK which essentially makes it null, I'll probably get rid of it later.
+- made changes in league with Apache 2.0.14.  Handlers were moved around etc.
+
 Changes in 1.0d5
 --------------------------------------------------------------------------------
 
@@ -15,11 +21,13 @@ TODO
 5. Add filters?
 6. libapreq (doesn't appear to be ported to 2.0 completley yet...)
 7. Decide what goals need to be acheived for release 1.0
+8. Make necessary changes along with Apache 2.0 revisions.
 
 Map
 --------------------------------------------------------------------------------
 
 - 1.0d0 -| Inital port from mod_tcl* 0.26, single file split into 4
+         | (Apache 2.0a9)
          |
 - 1.0d1 -| removal of nasties, update of configuration
          |
@@ -29,9 +37,11 @@ Map
          |
 - 1.0d4 -| Documentation, 99% of API exposed
          |
-* 1.0d5 *| constants commands in ::apache namespace, mmap checking, test script
+- 1.0d5 -| constants commands in ::apache namespace, mmap checking, test
+         | script
          |
-- 1.0d6 -|
+* 1.0d6 *| ap_send_http_header deprecated, updated to be peachy with
+         | Apache 2.0.14
          |
 - 1.0d7 -|
          |
@@ -40,4 +50,3 @@ Map
 - 1.0d9 -|
          |
 - 1.0.0 -|
-

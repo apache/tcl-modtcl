@@ -79,7 +79,7 @@ static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
 static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, const char *two, const char *three);
 static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one, const char *two);
 static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
-static const char *tcl_no_args(cmd_parms *parms, void *mconfig);
+static const char* tcl_no_args(cmd_parms *parms, void *mconfig);
 
 typedef const char* (*fz_t)(void);
 
@@ -108,25 +108,21 @@ static const command_rec tcl_commands[] = {
 	{ NULL }
 };
 
-static handler_rec tcl_handlers[] = {
-	{ "tcl-handler",		tcl_handler },
-	{ NULL,					NULL }
-};
-
-static void register_hooks(void)
+static void register_hooks(apr_pool_t *p)
 {
-	ap_hook_pre_config(tcl_init, NULL, NULL, AP_HOOK_REALLY_FIRST);
-	ap_hook_post_config(tcl_init_handler, NULL, NULL, AP_HOOK_MIDDLE);
+	ap_hook_pre_config(tcl_init, NULL, NULL, APR_HOOK_REALLY_FIRST);
+	ap_hook_post_config(tcl_init_handler, NULL, NULL, APR_HOOK_MIDDLE);
 	
-//	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, AP_HOOK_MIDDLE);
-//	ap_hook_translate_name(tcl_translate_name, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_header_parser(tcl_header_parser, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_access_checker(tcl_access_checker, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_auth_checker(tcl_auth_checker, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_type_checker(tcl_type_checker, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_fixups(tcl_fixups, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, AP_HOOK_MIDDLE);
+//	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, APR_HOOK_MIDDLE);
+//	ap_hook_translate_name(tcl_translate_name, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_header_parser(tcl_header_parser, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_access_checker(tcl_access_checker, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_auth_checker(tcl_auth_checker, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_type_checker(tcl_type_checker, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_fixups(tcl_fixups, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_handler(tcl_handler, NULL, NULL, APR_HOOK_MIDDLE);
+	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
 AP_DECLARE_DATA module tcl_module = {
@@ -136,7 +132,6 @@ AP_DECLARE_DATA module tcl_module = {
     NULL,							/* create per-server config structure */
     NULL,							/* merge per-server config structures */
     tcl_commands,					/* command apr_table_t */
-    tcl_handlers,					/* handlers */
     register_hooks					/* register hooks */
 };
 
@@ -158,8 +153,8 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 	tcl_config_rec *tclr = (tcl_config_rec*) apr_pcalloc(p, sizeof(tcl_config_rec));
 	
 	tclr->fl		= 0;
-	tclr->var_list	= apr_make_array(p, 0, sizeof(var_cache));
-	tclr->raw_list	= apr_make_array(p, 0, sizeof(char*));
+	tclr->var_list	= apr_array_make(p, 0, sizeof(var_cache));
+	tclr->raw_list	= apr_array_make(p, 0, sizeof(char*));
 	
 	memset(tclr->handlers, 0, NUM_HANDLERS * sizeof(char*));
 	
@@ -195,7 +190,7 @@ static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, con
 {
 	tcl_config_rec *tclr = (tcl_config_rec*) mconfig;
 	char *ptr2, *ptr3;
-	var_cache *var = (var_cache*) apr_push_array(tclr->var_list);
+	var_cache *var = (var_cache*) apr_array_push(tclr->var_list);
 	
 	if (three == NULL) {
 		ptr2 = NULL;
@@ -218,7 +213,7 @@ static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, con
 static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one, const char *two)
 {
 	tcl_config_rec *tclr = (tcl_config_rec*) mconfig;
-	var_cache *var = (var_cache*) apr_push_array(tclr->var_list);
+	var_cache *var = (var_cache*) apr_array_push(tclr->var_list);
 	
 	var->var1 = apr_pstrdup(parms->pool, one);
 	var->var2 = apr_pstrdup(parms->pool, two);
@@ -234,7 +229,7 @@ static const char *tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg)
 	char l[MAX_STRING_LEN];
 	char **line, *script, **xx;
 	int i, j = 0, k = 0;
-	apr_array_header_t *temp = apr_make_array(parms->pool, 0, sizeof(char*));
+	apr_array_header_t *temp = apr_array_make(parms->pool, 0, sizeof(char*));
 	char **temp_elts = (char**) temp->elts;
 
 	while (!(ap_cfg_getline(l, MAX_STRING_LEN, parms->config_file))) {
@@ -242,7 +237,7 @@ static const char *tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg)
 			goto cleanup;
 		}
 
-		line = (char**) apr_push_array(temp);
+		line = (char**) apr_array_push(temp);
 		j += asprintf(line, l);
 		k++;
 	}
@@ -262,7 +257,7 @@ static const char *tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg)
 	
 	script[j] = '\0';
 	
-	xx = (char**) apr_push_array(tclr->raw_list);
+	xx = (char**) apr_array_push(tclr->raw_list);
 	*xx = apr_pstrdup(parms->pool, script);
 	
 	free(script);
@@ -348,7 +343,7 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	char *buf;
 	
 	_pconf = pconf;
-	fcache = apr_make_array(pconf, 0, sizeof(file_cache));
+	fcache = apr_array_make(pconf, 0, sizeof(file_cache));
 	
 	interp = Tcl_CreateInterp();
 	
@@ -357,7 +352,7 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 		exit(1);
 	}
 	
-	apr_register_cleanup(pconf, NULL, tcl_cleanup, apr_null_cleanup);
+	apr_pool_cleanup_register(pconf, NULL, tcl_cleanup, apr_pool_cleanup_null);
 	
 	/* misc util */
 	Tcl_CreateObjCommand(interp, "apache::abort", cmd_abort, NULL, NULL);
@@ -573,7 +568,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d5");
+	ap_add_version_component(pconf, "mod_tcl/1.0d6");
 }
 
 static int run_handler(request_rec *r, int hh)
@@ -640,7 +635,7 @@ static int run_handler(request_rec *r, int hh)
 
 		close(fd);
 		
-		fptr = (file_cache*) apr_push_array(fcache);
+		fptr = (file_cache*) apr_array_push(fcache);
 		
 		fptr->file = apr_pstrdup(fcache->cont, r->filename);
 		memcpy(&(fptr->st), &st, sizeof(struct stat));
@@ -727,7 +722,7 @@ static int run_handler(request_rec *r, int hh)
 
 		close(fd);
 		
-		fptr = (file_cache*) apr_push_array(fcache);
+		fptr = (file_cache*) apr_array_push(fcache);
 		
 		fptr->file = apr_pstrdup(fcache->cont, r->filename);
 		memcpy(&(fptr->st), &st, sizeof(struct stat));
@@ -760,7 +755,7 @@ static int run_handler(request_rec *r, int hh)
 			ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, r->server, "Tcl_EvalObjEx(%s): %s", eptr, Tcl_GetStringResult(interp));
 			
 			r->content_type = "text/html";
-			ap_send_http_header(r);
+//			ap_send_http_header(r);
 			
 			ap_rprintf(r, "<H3>TCL Error</H3><BR><PRE>%s</PRE>", Tcl_GetString(Tcl_GetVar2Ex(interp, "errorInfo", NULL, 0)));
 			
@@ -775,6 +770,10 @@ static int run_handler(request_rec *r, int hh)
 
 static int tcl_handler(request_rec *r)
 {
+	if (strcmp("tcl-handler", r->handler)) {
+		return DECLINED;
+	}
+	
 	return run_handler(r, 0);
 }
 

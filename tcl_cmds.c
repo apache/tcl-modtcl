@@ -1075,10 +1075,10 @@ static int r_set_allowed_methods(int objc, Tcl_Obj *CONST objv[])
 		return TCL_ERROR;
 	}
 	
-	_r->allowed_methods->method_list = apr_make_array(_r->allowed_methods->method_list->cont, xxobjc, sizeof(char*));
+	_r->allowed_methods->method_list = (apr_array_header_t*) apr_array_make(_r->allowed_methods->method_list->cont, xxobjc, sizeof(char*));
 	
 	for (i = 0; i < xxobjc; i++) {
-		char *xx = apr_push_array(_r->allowed_methods->method_list);
+		char *xx = (char*) apr_array_push(_r->allowed_methods->method_list);
 		
 		xx = apr_pstrdup(_r->allowed_methods->method_list->cont, Tcl_GetString(xxobjv[i]));
 	}
@@ -1158,10 +1158,10 @@ static int r_set_content_languages(int objc, Tcl_Obj *CONST objv[])
 		return TCL_ERROR;
 	}
 	
-	_r->content_languages = apr_make_array(_r->content_languages->cont, xxobjc, sizeof(char*));
+	_r->content_languages = apr_array_make(_r->content_languages->cont, xxobjc, sizeof(char*));
 	
 	for (i = 0; i < xxobjc; i++) {
-		char *xx = apr_push_array(_r->content_languages);
+		char *xx = apr_array_push(_r->content_languages);
 		
 		xx = apr_pstrdup(_r->content_languages->cont, Tcl_GetString(xxobjv[i]));
 	}
@@ -1773,6 +1773,7 @@ int cmd_ap_log_error(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST ob
 
 int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
+/*
 	Tcl_Obj *obj;
 	
 	obj = Tcl_GetVar2Ex(interp, "content_type", NULL, 0);
@@ -1782,6 +1783,7 @@ int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 	}
 	
 	ap_send_http_header(_r);
+*/
 	
 	return TCL_OK;
 }
