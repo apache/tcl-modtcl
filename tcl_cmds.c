@@ -640,7 +640,7 @@ static Tcl_Obj* r_headers_in(void)
 {
 	Tcl_Obj *obj = Tcl_NewObj();
 	int i;
-	apr_array_header_t *ha = apr_table_elts(_r->headers_in);
+	const apr_array_header_t *ha = apr_table_elts(_r->headers_in);
 	apr_table_entry_t *hte = (apr_table_entry_t*) ha->elts;
 
 	for (i = 0; i < ha->nelts; i++) {
@@ -655,7 +655,7 @@ static Tcl_Obj* r_headers_out(void)
 {
 	Tcl_Obj *obj = Tcl_NewObj();
 	int i;
-	apr_array_header_t *ha = apr_table_elts(_r->headers_out);
+	const apr_array_header_t *ha = apr_table_elts(_r->headers_out);
 	apr_table_entry_t *hte = (apr_table_entry_t*) ha->elts;
 
 	for (i = 0; i < ha->nelts; i++) {
@@ -670,7 +670,7 @@ static Tcl_Obj* r_err_headers_out(void)
 {
 	Tcl_Obj *obj = Tcl_NewObj();
 	int i;
-	apr_array_header_t *ha = apr_table_elts(_r->err_headers_out);
+	const apr_array_header_t *ha = apr_table_elts(_r->err_headers_out);
 	apr_table_entry_t *hte = (apr_table_entry_t*) ha->elts;
 
 	for (i = 0; i < ha->nelts; i++) {
@@ -686,7 +686,7 @@ static Tcl_Obj* r_subprocess_env(void)
 {
 	Tcl_Obj *obj = Tcl_NewObj();
 	int i;
-	apr_array_header_t *ha = apr_table_elts(_r->subprocess_env);
+	const apr_array_header_t *ha = apr_table_elts(_r->subprocess_env);
 	apr_table_entry_t *hte = (apr_table_entry_t*) ha->elts;
 
 	for (i = 0; i < ha->nelts; i++) {
@@ -701,7 +701,7 @@ static Tcl_Obj* r_notes(void)
 {
 	Tcl_Obj *obj = Tcl_NewObj();
 	int i;
-	apr_array_header_t *ha = apr_table_elts(_r->notes);
+	const apr_array_header_t *ha = apr_table_elts(_r->notes);
 	apr_table_entry_t *hte = (apr_table_entry_t*) ha->elts;
 
 	for (i = 0; i < ha->nelts; i++) {
@@ -865,7 +865,7 @@ static Tcl_Obj* r_connection_notes(void)
 {
 	Tcl_Obj *obj = Tcl_NewObj();
 	int i;
-	apr_array_header_t *ha = apr_table_elts(_r->connection->notes);
+	const apr_array_header_t *ha = apr_table_elts(_r->connection->notes);
 	apr_table_entry_t *hte = (apr_table_entry_t*) ha->elts;
 
 	for (i = 0; i < ha->nelts; i++) {
@@ -1037,9 +1037,10 @@ static int r_set_proto_num(int objc, Tcl_Obj *CONST objv[])
 
 static int r_set_allowed(int objc, Tcl_Obj *CONST objv[])
 {
-/* needs to be apr_int64_t, TCL doesn't support this in 8.3.4...
-	Tcl_GetIntFromObj(interp, objv[2], &(_r->allowed));
-*/	
+#if TCL_MAJOR_VERSION > 7 && TCL_MINOR_VERSION > 3
+	Tcl_GetWideIntFromObj(interp, objv[2], &(_r->allowed));
+#endif
+
 	return TCL_OK;
 }
 
@@ -1059,8 +1060,8 @@ static int r_set_allowed_methods(int objc, Tcl_Obj *CONST objv[])
 		Tcl_WrongNumArgs(interp, 2, objv, "method_mask method_list");
 		return TCL_ERROR;
 	}
-/*	needs to be apr_int64_t, TCL doesn't support this in 8.3.4...
-	Tcl_GetIntFromObj(interp, objv[2], &(_r->allowed_methods->method_mask));
+#if TCL_MAJOR_VERSION > 7 && TCL_MINOR_VERSION > 3
+	Tcl_GetWideIntFromObj(interp, objv[2], &(_r->allowed_methods->method_mask));
 	
 	if (Tcl_ListObjGetElements(interp, objv[3], &xxobjc, &xxobjv) == TCL_ERROR) {
 		return TCL_ERROR;
@@ -1073,7 +1074,7 @@ static int r_set_allowed_methods(int objc, Tcl_Obj *CONST objv[])
 		
 		xx = apr_pstrdup(_r->allowed_methods->method_list->pool, Tcl_GetString(xxobjv[i]));
 	}
-*/	
+#endif
 	return TCL_OK;
 }
 
@@ -2015,6 +2016,8 @@ int cmd_ap_get_client_block(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 		Tcl_SetVar2Ex(interp, "R", NULL, Tcl_NewByteArrayObj(buffer, bufsiz), TCL_LEAVE_ERR_MSG);
 	}
 	
+	free(buffer);
+	
 	return TCL_OK;
 }
 
@@ -2104,7 +2107,7 @@ int cmd_ap_method_name_of(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CON
 	
 	Tcl_GetIntFromObj(interp, objv[1], &methnum);
 	
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_method_name_of(methnum), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_method_name_of(_r->pool, methnum), -1));
 	
 	return TCL_OK;
 }
