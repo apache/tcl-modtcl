@@ -59,27 +59,6 @@
 #ifndef __MOD_TCL_H__
 #define __MOD_TCL_H__
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <errno.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif /* HAVE_INTTYPES_H */
-
-#ifdef HAVE_INT_TYPES_H
-#include <int_types.h>
-#endif /* HAVE_INT_TYPES_H */
-
 #include "apr.h"
 #include "apr_strings.h"
 #include "apr_lib.h"
@@ -96,6 +75,31 @@
 #include "util_uri.h"
 
 #include "ap_config_auto.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <errno.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
+
+#include <fcntl.h>
+
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif /* HAVE_INTTYPES_H */
+
+#ifdef HAVE_INT_TYPES_H
+#include <int_types.h>
+#endif /* HAVE_INT_TYPES_H */
 
 #ifndef HAVE_TCL_H
 #error "uhh, no tcl.h found"

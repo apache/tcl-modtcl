@@ -345,6 +345,8 @@ int					read_post_ok;
 
 static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 {
+	char *buf;
+	
 	_pconf = pconf;
 	fcache = apr_make_array(pconf, 0, sizeof(file_cache));
 	
@@ -356,202 +358,207 @@ static void tcl_init(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
 	}
 	
 	apr_register_cleanup(pconf, NULL, tcl_cleanup, apr_null_cleanup);
-
-	set_vari(interp, "DECLINED", NULL, DECLINED);
-	set_vari(interp, "DONE", NULL, DONE);
-	set_vari(interp, "OK", NULL, OK);
-	
-	/* legacy */
-	set_vari(interp, "BAD_REQUEST", NULL, HTTP_BAD_REQUEST);
-	set_vari(interp, "REDIRECT", NULL, HTTP_MOVED_TEMPORARILY);
-	set_vari(interp, "SERVER_ERROR", NULL, HTTP_INTERNAL_SERVER_ERROR);
-	set_vari(interp, "NOT_FOUND", NULL, HTTP_NOT_FOUND);
-	
-	set_vari(interp, "M_POST", NULL, M_POST);
-	set_vari(interp, "M_GET", NULL, M_GET);
-	set_vari(interp, "M_PUT", NULL, M_PUT);
-	set_vari(interp, "M_DELETE", NULL, M_DELETE);
-	set_vari(interp, "M_CONNECT", NULL, M_CONNECT);
-	set_vari(interp, "M_OPTIONS", NULL, M_OPTIONS);
-	set_vari(interp, "M_TRACE", NULL, M_TRACE);
-	set_vari(interp, "M_PATCH", NULL, M_PATCH);
-	set_vari(interp, "M_PROPFIND", NULL, M_PROPFIND);
-	set_vari(interp, "M_PROPPATCH", NULL, M_PROPPATCH);
-	set_vari(interp, "M_MKCOL", NULL, M_MKCOL);
-	set_vari(interp, "M_COPY", NULL, M_COPY);
-	set_vari(interp, "M_MOVE", NULL, M_MOVE);
-	set_vari(interp, "M_LOCK", NULL, M_LOCK);
-	set_vari(interp, "M_UNLOCK", NULL, M_UNLOCK);
-	set_vari(interp, "M_INVALID", NULL, M_INVALID);
-	
-	set_vari(interp, "HTTP_CONTINUE", NULL, HTTP_CONTINUE);
-	set_vari(interp, "HTTP_SWITCHING_PROTOCOLS", NULL, HTTP_SWITCHING_PROTOCOLS);
-	set_vari(interp, "HTTP_PROCESSING", NULL, HTTP_PROCESSING);
-	set_vari(interp, "HTTP_OK", NULL, HTTP_OK);
-	set_vari(interp, "HTTP_CREATED", NULL, HTTP_CREATED);
-	set_vari(interp, "HTTP_ACCEPTED", NULL, HTTP_ACCEPTED);
-	set_vari(interp, "HTTP_NON_AUTHORITATIVE", NULL, HTTP_NON_AUTHORITATIVE);
-	set_vari(interp, "HTTP_NO_CONTENT", NULL, HTTP_NO_CONTENT);
-	set_vari(interp, "HTTP_RESET_CONTENT", NULL, HTTP_RESET_CONTENT);
-	set_vari(interp, "HTTP_PARTIAL_CONTENT", NULL, HTTP_PARTIAL_CONTENT);
-	set_vari(interp, "HTTP_MULTI_STATUS", NULL, HTTP_MULTI_STATUS);
-	set_vari(interp, "HTTP_MULTIPLE_CHOICES", NULL, HTTP_MULTIPLE_CHOICES);
-	set_vari(interp, "HTTP_MOVED_PERMANENTLY", NULL, HTTP_MOVED_PERMANENTLY);
-	set_vari(interp, "HTTP_MOVED_TEMPORARILY", NULL, HTTP_MOVED_TEMPORARILY);
-	set_vari(interp, "HTTP_SEE_OTHER", NULL, HTTP_SEE_OTHER);
-	set_vari(interp, "HTTP_NOT_MODIFIED", NULL, HTTP_NOT_MODIFIED);
-	set_vari(interp, "HTTP_USE_PROXY", NULL, HTTP_USE_PROXY);
-	set_vari(interp, "HTTP_TEMPORARY_REDIRECT", NULL, HTTP_TEMPORARY_REDIRECT);
-	set_vari(interp, "HTTP_BAD_REQUEST", NULL, HTTP_BAD_REQUEST);
-	set_vari(interp, "HTTP_UNAUTHORIZED", NULL, HTTP_UNAUTHORIZED);
-	set_vari(interp, "HTTP_PAYMENT_REQUIRED", NULL, HTTP_PAYMENT_REQUIRED);
-	set_vari(interp, "HTTP_FORBIDDEN", NULL, HTTP_FORBIDDEN);
-	set_vari(interp, "HTTP_NOT_FOUND", NULL, HTTP_NOT_FOUND);
-	set_vari(interp, "HTTP_METHOD_NOT_ALLOWED", NULL, HTTP_METHOD_NOT_ALLOWED);
-	set_vari(interp, "HTTP_NOT_ACCEPTABLE", NULL, HTTP_NOT_ACCEPTABLE);
-	set_vari(interp, "HTTP_PROXY_AUTHENTICATION_REQUIRED", NULL, HTTP_PROXY_AUTHENTICATION_REQUIRED);
-	set_vari(interp, "HTTP_REQUEST_TIME_OUT", NULL, HTTP_REQUEST_TIME_OUT);
-	set_vari(interp, "HTTP_CONFLICT", NULL, HTTP_CONFLICT);
-	set_vari(interp, "HTTP_GONE", NULL, HTTP_GONE);
-	set_vari(interp, "HTTP_LENGTH_REQUIRED", NULL, HTTP_LENGTH_REQUIRED);
-	set_vari(interp, "HTTP_PRECONDITION_FAILED", NULL, HTTP_PRECONDITION_FAILED);
-	set_vari(interp, "HTTP_REQUEST_ENTITY_TOO_LARGE", NULL, HTTP_REQUEST_ENTITY_TOO_LARGE);
-	set_vari(interp, "HTTP_REQUEST_URI_TOO_LARGE", NULL, HTTP_REQUEST_URI_TOO_LARGE);
-	set_vari(interp, "HTTP_UNSUPPORTED_MEDIA_TYPE", NULL, HTTP_UNSUPPORTED_MEDIA_TYPE);
-	set_vari(interp, "HTTP_RANGE_NOT_SATISFIABLE", NULL, HTTP_RANGE_NOT_SATISFIABLE);
-	set_vari(interp, "HTTP_EXPECTATION_FAILED", NULL, HTTP_EXPECTATION_FAILED);
-	set_vari(interp, "HTTP_UNPROCESSABLE_ENTITY", NULL, HTTP_UNPROCESSABLE_ENTITY);
-	set_vari(interp, "HTTP_LOCKED", NULL, HTTP_LOCKED);
-	set_vari(interp, "HTTP_FAILED_DEPENDENCY", NULL, HTTP_FAILED_DEPENDENCY);
-	set_vari(interp, "HTTP_INTERNAL_SERVER_ERROR", NULL, HTTP_INTERNAL_SERVER_ERROR);
-	set_vari(interp, "HTTP_NOT_IMPLEMENTED", NULL, HTTP_NOT_IMPLEMENTED);
-	set_vari(interp, "HTTP_BAD_GATEWAY", NULL, HTTP_BAD_GATEWAY);
-	set_vari(interp, "HTTP_SERVICE_UNAVAILABLE", NULL, HTTP_SERVICE_UNAVAILABLE);
-	set_vari(interp, "HTTP_GATEWAY_TIME_OUT", NULL, HTTP_GATEWAY_TIME_OUT);
-	set_vari(interp, "HTTP_VERSION_NOT_SUPPORTED", NULL, HTTP_VERSION_NOT_SUPPORTED);
-	set_vari(interp, "HTTP_VARIANT_ALSO_VARIES", NULL, HTTP_VARIANT_ALSO_VARIES);
-	set_vari(interp, "HTTP_INSUFFICIENT_STORAGE", NULL, HTTP_INSUFFICIENT_STORAGE);
-	set_vari(interp, "HTTP_NOT_EXTENDED", NULL, HTTP_NOT_EXTENDED);
-	
-	set_vari(interp, "REMOTE_HOST", NULL, REMOTE_HOST);
-	set_vari(interp, "REMOTE_NAME", NULL, REMOTE_NAME);
-	set_vari(interp, "REMOTE_NOLOOKUP", NULL, REMOTE_NOLOOKUP);
-	set_vari(interp, "REMOTE_DOUBLE_REV", NULL, REMOTE_DOUBLE_REV);
-	
-	set_vari(interp, "APLOG_EMERG", NULL, APLOG_EMERG);
-	set_vari(interp, "APLOG_ALERT", NULL, APLOG_ALERT);
-	set_vari(interp, "APLOG_CRIT", NULL, APLOG_CRIT);
-	set_vari(interp, "APLOG_ERR", NULL, APLOG_ERR);
-	set_vari(interp, "APLOG_WARNING", NULL, APLOG_WARNING);
-	set_vari(interp, "APLOG_NOTICE", NULL, APLOG_NOTICE);
-	set_vari(interp, "APLOG_INFO", NULL, APLOG_INFO);
-	set_vari(interp, "APLOG_DEBUG", NULL, APLOG_DEBUG);
-	set_vari(interp, "APLOG_NOERRNO", NULL, APLOG_NOERRNO);
-
-	set_vari(interp, "REQUEST_NO_BODY", NULL, REQUEST_NO_BODY);
-	set_vari(interp, "REQUEST_CHUNKED_ERROR", NULL, REQUEST_CHUNKED_ERROR);
-	set_vari(interp, "REQUEST_CHUNKED_DECHUNK", NULL, REQUEST_CHUNKED_DECHUNK);
 	
 	/* misc util */
-	Tcl_CreateObjCommand(interp, "abort", cmd_abort, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "read_post", cmd_read_post, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::abort", cmd_abort, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::read_post", cmd_read_post, NULL, NULL);
 	
-	Tcl_CreateObjCommand(interp, "random", cmd_random, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "srandom", cmd_srandom, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::random", cmd_random, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::srandom", cmd_srandom, NULL, NULL);
 	
-	Tcl_CreateObjCommand(interp, "base64_encode", cmd_base64_encode, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "base64_decode", cmd_base64_decode, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::base64_encode", cmd_base64_encode, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::base64_decode", cmd_base64_decode, NULL, NULL);
 	
 	/* read and set stuff from request_rec */
-	Tcl_CreateObjCommand(interp, "r", cmd_r, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "r_set", cmd_r_set, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::r", cmd_r, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::r_set", cmd_r_set, NULL, NULL);
 	
 	/* http_core.h */
-	Tcl_CreateObjCommand(interp, "ap_allow_options", cmd_ap_allow_options, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_allow_overrides", cmd_ap_allow_overrides, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_default_type", cmd_ap_default_type, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_document_root", cmd_ap_document_root, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_remote_host", cmd_ap_get_remote_host, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_remote_logname", cmd_ap_get_remote_logname, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_construct_url", cmd_ap_construct_url, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_server_name", cmd_ap_get_server_name, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_server_port", cmd_ap_get_server_port, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_limit_req_body", cmd_ap_get_limit_req_body, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_limit_xml_body", cmd_ap_get_limit_xml_body, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_custom_response", cmd_ap_custom_response, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_exists_config_define", cmd_ap_exists_config_define, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_auth_type", cmd_ap_auth_type, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_auth_name", cmd_ap_auth_name, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_satisfies", cmd_ap_satisfies, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_requires", cmd_ap_requires, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_allow_options", cmd_ap_allow_options, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_allow_overrides", cmd_ap_allow_overrides, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_default_type", cmd_ap_default_type, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_document_root", cmd_ap_document_root, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_remote_host", cmd_ap_get_remote_host, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_remote_logname", cmd_ap_get_remote_logname, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_construct_url", cmd_ap_construct_url, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_server_name", cmd_ap_get_server_name, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_server_port", cmd_ap_get_server_port, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_limit_req_body", cmd_ap_get_limit_req_body, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_limit_xml_body", cmd_ap_get_limit_xml_body, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_custom_response", cmd_ap_custom_response, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_exists_config_define", cmd_ap_exists_config_define, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_auth_type", cmd_ap_auth_type, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_auth_name", cmd_ap_auth_name, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_satisfies", cmd_ap_satisfies, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_requires", cmd_ap_requires, NULL, NULL);
 	
 	/* http_log.h */
-	Tcl_CreateObjCommand(interp, "ap_log_error", cmd_ap_log_error, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_log_error", cmd_ap_log_error, NULL, NULL);
 	
 	/* http_protocol.h */
-	Tcl_CreateObjCommand(interp, "ap_send_http_header", cmd_ap_send_http_header, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_send_http_trace", cmd_ap_send_http_trace, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_send_http_options", cmd_ap_send_http_options, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_finalize_request_protocol", cmd_ap_finalize_request_protocol, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_send_error_response", cmd_ap_send_error_response, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_set_content_length", cmd_ap_set_content_length, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_set_keepalive", cmd_ap_set_keepalive, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_rationalize_mtime", cmd_ap_rationalize_mtime, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_make_etag", cmd_ap_make_etag, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_set_etag", cmd_ap_set_etag, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_set_last_modified", cmd_ap_set_last_modified, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_meets_conditions", cmd_ap_meets_conditions, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_send_http_header", cmd_ap_send_http_header, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_send_http_trace", cmd_ap_send_http_trace, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_send_http_options", cmd_ap_send_http_options, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_finalize_request_protocol", cmd_ap_finalize_request_protocol, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_send_error_response", cmd_ap_send_error_response, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_set_content_length", cmd_ap_set_content_length, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_set_keepalive", cmd_ap_set_keepalive, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_rationalize_mtime", cmd_ap_rationalize_mtime, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_make_etag", cmd_ap_make_etag, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_set_etag", cmd_ap_set_etag, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_set_last_modified", cmd_ap_set_last_modified, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_meets_conditions", cmd_ap_meets_conditions, NULL, NULL);
 	/**/
-	Tcl_CreateObjCommand(interp, "rputs", cmd_rputs, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "rwrite", cmd_rwrite, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::rputs", cmd_rputs, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::rwrite", cmd_rwrite, NULL, NULL);
 	/**/
-	Tcl_CreateObjCommand(interp, "ap_rputs", cmd_rputs, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_rwrite", cmd_rwrite, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_rputs", cmd_rputs, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_rwrite", cmd_rwrite, NULL, NULL);
 	/**/
-	Tcl_CreateObjCommand(interp, "ap_rflush", cmd_ap_rflush, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_status_line", cmd_ap_get_status_line, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_setup_client_block", cmd_ap_setup_client_block, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_client_block", cmd_ap_get_client_block, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_discard_request_body", cmd_ap_discard_request_body, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_note_auth_failure", cmd_ap_note_auth_failure, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_note_basic_auth_failure", cmd_ap_note_basic_auth_failure, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_note_digest_auth_failure", cmd_ap_note_digest_auth_failure, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_basic_auth_pw", cmd_ap_get_basic_auth_pw, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_parse_uri", cmd_ap_parse_uri, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_method_number_of", cmd_ap_method_number_of, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_method_name_of", cmd_ap_method_name_of, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_rflush", cmd_ap_rflush, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_status_line", cmd_ap_get_status_line, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_setup_client_block", cmd_ap_setup_client_block, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_client_block", cmd_ap_get_client_block, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_discard_request_body", cmd_ap_discard_request_body, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_note_auth_failure", cmd_ap_note_auth_failure, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_note_basic_auth_failure", cmd_ap_note_basic_auth_failure, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_note_digest_auth_failure", cmd_ap_note_digest_auth_failure, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_basic_auth_pw", cmd_ap_get_basic_auth_pw, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_parse_uri", cmd_ap_parse_uri, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_method_number_of", cmd_ap_method_number_of, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_method_name_of", cmd_ap_method_name_of, NULL, NULL);
 
 	/* http_request.h */
-	Tcl_CreateObjCommand(interp, "ap_internal_redirect", cmd_ap_internal_redirect, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_internal_redirect_handler", cmd_ap_internal_redirect_handler, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_some_auth_required", cmd_ap_some_auth_required, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_update_mtime", cmd_ap_update_mtime, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_allow_methods", cmd_ap_allow_methods, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_internal_redirect", cmd_ap_internal_redirect, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_internal_redirect_handler", cmd_ap_internal_redirect_handler, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_some_auth_required", cmd_ap_some_auth_required, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_update_mtime", cmd_ap_update_mtime, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_allow_methods", cmd_ap_allow_methods, NULL, NULL);
 
 	/* httpd.h */
-	Tcl_CreateObjCommand(interp, "ap_get_server_version", cmd_ap_get_server_version, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_add_version_component", cmd_ap_add_version_component, NULL, NULL);
-	Tcl_CreateObjCommand(interp, "ap_get_server_built", cmd_ap_get_server_built, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_server_version", cmd_ap_get_server_version, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_add_version_component", cmd_ap_add_version_component, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_get_server_built", cmd_ap_get_server_built, NULL, NULL);
 	
 	/* util_script.h */
-	Tcl_CreateObjCommand(interp, "ap_create_environment", cmd_ap_create_environment, NULL, NULL);
+	Tcl_CreateObjCommand(interp, "apache::ap_create_environment", cmd_ap_create_environment, NULL, NULL);
 	
-	// provided
-	{
-		char output_proc[] = "\
-		proc output { script } {\n\
-			set script [split $script \\n]\n\
-			\n\
-			foreach i $script {\n\
-				if { $i != \"\" } {\n\
-					regsub -all {\\\"} $i {\\\"} i\n\
-					uplevel 1 rputs \\\"$i\\\"\n\
-				}\n\
+	// provided nasty
+	buf = "\
+	proc apache::output { script } {\n\
+		set script [split $script \\n]\n\
+		\n\
+		foreach i $script {\n\
+			if { $i != \"\" } {\n\
+				regsub -all {\\\"} $i {\\\"} i\n\
+				uplevel 1 rputs \\\"$i\\\"\n\
 			}\n\
-		}";
-							
-		run_script(interp, output_proc);
-	}
+		}\n\
+	}";
+						
+	run_script(interp, buf);
+
+	set_vari(interp, "apache::DECLINED", NULL, DECLINED);
+	set_vari(interp, "apache::DONE", NULL, DONE);
+	set_vari(interp, "apache::OK", NULL, OK);
+	
+	/* legacy */
+	set_vari(interp, "apache::BAD_REQUEST", NULL, HTTP_BAD_REQUEST);
+	set_vari(interp, "apache::REDIRECT", NULL, HTTP_MOVED_TEMPORARILY);
+	set_vari(interp, "apache::SERVER_ERROR", NULL, HTTP_INTERNAL_SERVER_ERROR);
+	set_vari(interp, "apache::NOT_FOUND", NULL, HTTP_NOT_FOUND);
+	
+	set_vari(interp, "apache::M_POST", NULL, M_POST);
+	set_vari(interp, "apache::M_GET", NULL, M_GET);
+	set_vari(interp, "apache::M_PUT", NULL, M_PUT);
+	set_vari(interp, "apache::M_DELETE", NULL, M_DELETE);
+	set_vari(interp, "apache::M_CONNECT", NULL, M_CONNECT);
+	set_vari(interp, "apache::M_OPTIONS", NULL, M_OPTIONS);
+	set_vari(interp, "apache::M_TRACE", NULL, M_TRACE);
+	set_vari(interp, "apache::M_PATCH", NULL, M_PATCH);
+	set_vari(interp, "apache::M_PROPFIND", NULL, M_PROPFIND);
+	set_vari(interp, "apache::M_PROPPATCH", NULL, M_PROPPATCH);
+	set_vari(interp, "apache::M_MKCOL", NULL, M_MKCOL);
+	set_vari(interp, "apache::M_COPY", NULL, M_COPY);
+	set_vari(interp, "apache::M_MOVE", NULL, M_MOVE);
+	set_vari(interp, "apache::M_LOCK", NULL, M_LOCK);
+	set_vari(interp, "apache::M_UNLOCK", NULL, M_UNLOCK);
+	set_vari(interp, "apache::M_INVALID", NULL, M_INVALID);
+	
+	set_vari(interp, "apache::HTTP_CONTINUE", NULL, HTTP_CONTINUE);
+	set_vari(interp, "apache::HTTP_SWITCHING_PROTOCOLS", NULL, HTTP_SWITCHING_PROTOCOLS);
+	set_vari(interp, "apache::HTTP_PROCESSING", NULL, HTTP_PROCESSING);
+	set_vari(interp, "apache::HTTP_OK", NULL, HTTP_OK);
+	set_vari(interp, "apache::HTTP_CREATED", NULL, HTTP_CREATED);
+	set_vari(interp, "apache::HTTP_ACCEPTED", NULL, HTTP_ACCEPTED);
+	set_vari(interp, "apache::HTTP_NON_AUTHORITATIVE", NULL, HTTP_NON_AUTHORITATIVE);
+	set_vari(interp, "apache::HTTP_NO_CONTENT", NULL, HTTP_NO_CONTENT);
+	set_vari(interp, "apache::HTTP_RESET_CONTENT", NULL, HTTP_RESET_CONTENT);
+	set_vari(interp, "apache::HTTP_PARTIAL_CONTENT", NULL, HTTP_PARTIAL_CONTENT);
+	set_vari(interp, "apache::HTTP_MULTI_STATUS", NULL, HTTP_MULTI_STATUS);
+	set_vari(interp, "apache::HTTP_MULTIPLE_CHOICES", NULL, HTTP_MULTIPLE_CHOICES);
+	set_vari(interp, "apache::HTTP_MOVED_PERMANENTLY", NULL, HTTP_MOVED_PERMANENTLY);
+	set_vari(interp, "apache::HTTP_MOVED_TEMPORARILY", NULL, HTTP_MOVED_TEMPORARILY);
+	set_vari(interp, "apache::HTTP_SEE_OTHER", NULL, HTTP_SEE_OTHER);
+	set_vari(interp, "apache::HTTP_NOT_MODIFIED", NULL, HTTP_NOT_MODIFIED);
+	set_vari(interp, "apache::HTTP_USE_PROXY", NULL, HTTP_USE_PROXY);
+	set_vari(interp, "apache::HTTP_TEMPORARY_REDIRECT", NULL, HTTP_TEMPORARY_REDIRECT);
+	set_vari(interp, "apache::HTTP_BAD_REQUEST", NULL, HTTP_BAD_REQUEST);
+	set_vari(interp, "apache::HTTP_UNAUTHORIZED", NULL, HTTP_UNAUTHORIZED);
+	set_vari(interp, "apache::HTTP_PAYMENT_REQUIRED", NULL, HTTP_PAYMENT_REQUIRED);
+	set_vari(interp, "apache::HTTP_FORBIDDEN", NULL, HTTP_FORBIDDEN);
+	set_vari(interp, "apache::HTTP_NOT_FOUND", NULL, HTTP_NOT_FOUND);
+	set_vari(interp, "apache::HTTP_METHOD_NOT_ALLOWED", NULL, HTTP_METHOD_NOT_ALLOWED);
+	set_vari(interp, "apache::HTTP_NOT_ACCEPTABLE", NULL, HTTP_NOT_ACCEPTABLE);
+	set_vari(interp, "apache::HTTP_PROXY_AUTHENTICATION_REQUIRED", NULL, HTTP_PROXY_AUTHENTICATION_REQUIRED);
+	set_vari(interp, "apache::HTTP_REQUEST_TIME_OUT", NULL, HTTP_REQUEST_TIME_OUT);
+	set_vari(interp, "apache::HTTP_CONFLICT", NULL, HTTP_CONFLICT);
+	set_vari(interp, "apache::HTTP_GONE", NULL, HTTP_GONE);
+	set_vari(interp, "apache::HTTP_LENGTH_REQUIRED", NULL, HTTP_LENGTH_REQUIRED);
+	set_vari(interp, "apache::HTTP_PRECONDITION_FAILED", NULL, HTTP_PRECONDITION_FAILED);
+	set_vari(interp, "apache::HTTP_REQUEST_ENTITY_TOO_LARGE", NULL, HTTP_REQUEST_ENTITY_TOO_LARGE);
+	set_vari(interp, "apache::HTTP_REQUEST_URI_TOO_LARGE", NULL, HTTP_REQUEST_URI_TOO_LARGE);
+	set_vari(interp, "apache::HTTP_UNSUPPORTED_MEDIA_TYPE", NULL, HTTP_UNSUPPORTED_MEDIA_TYPE);
+	set_vari(interp, "apache::HTTP_RANGE_NOT_SATISFIABLE", NULL, HTTP_RANGE_NOT_SATISFIABLE);
+	set_vari(interp, "apache::HTTP_EXPECTATION_FAILED", NULL, HTTP_EXPECTATION_FAILED);
+	set_vari(interp, "apache::HTTP_UNPROCESSABLE_ENTITY", NULL, HTTP_UNPROCESSABLE_ENTITY);
+	set_vari(interp, "apache::HTTP_LOCKED", NULL, HTTP_LOCKED);
+	set_vari(interp, "apache::HTTP_FAILED_DEPENDENCY", NULL, HTTP_FAILED_DEPENDENCY);
+	set_vari(interp, "apache::HTTP_INTERNAL_SERVER_ERROR", NULL, HTTP_INTERNAL_SERVER_ERROR);
+	set_vari(interp, "apache::HTTP_NOT_IMPLEMENTED", NULL, HTTP_NOT_IMPLEMENTED);
+	set_vari(interp, "apache::HTTP_BAD_GATEWAY", NULL, HTTP_BAD_GATEWAY);
+	set_vari(interp, "apache::HTTP_SERVICE_UNAVAILABLE", NULL, HTTP_SERVICE_UNAVAILABLE);
+	set_vari(interp, "apache::HTTP_GATEWAY_TIME_OUT", NULL, HTTP_GATEWAY_TIME_OUT);
+	set_vari(interp, "apache::HTTP_VERSION_NOT_SUPPORTED", NULL, HTTP_VERSION_NOT_SUPPORTED);
+	set_vari(interp, "apache::HTTP_VARIANT_ALSO_VARIES", NULL, HTTP_VARIANT_ALSO_VARIES);
+	set_vari(interp, "apache::HTTP_INSUFFICIENT_STORAGE", NULL, HTTP_INSUFFICIENT_STORAGE);
+	set_vari(interp, "apache::HTTP_NOT_EXTENDED", NULL, HTTP_NOT_EXTENDED);
+	
+	set_vari(interp, "apache::REMOTE_HOST", NULL, REMOTE_HOST);
+	set_vari(interp, "apache::REMOTE_NAME", NULL, REMOTE_NAME);
+	set_vari(interp, "apache::REMOTE_NOLOOKUP", NULL, REMOTE_NOLOOKUP);
+	set_vari(interp, "apache::REMOTE_DOUBLE_REV", NULL, REMOTE_DOUBLE_REV);
+	
+	set_vari(interp, "apache::APLOG_EMERG", NULL, APLOG_EMERG);
+	set_vari(interp, "apache::APLOG_ALERT", NULL, APLOG_ALERT);
+	set_vari(interp, "apache::APLOG_CRIT", NULL, APLOG_CRIT);
+	set_vari(interp, "apache::APLOG_ERR", NULL, APLOG_ERR);
+	set_vari(interp, "apache::APLOG_WARNING", NULL, APLOG_WARNING);
+	set_vari(interp, "apache::APLOG_NOTICE", NULL, APLOG_NOTICE);
+	set_vari(interp, "apache::APLOG_INFO", NULL, APLOG_INFO);
+	set_vari(interp, "apache::APLOG_DEBUG", NULL, APLOG_DEBUG);
+	set_vari(interp, "apache::APLOG_NOERRNO", NULL, APLOG_NOERRNO);
+
+	set_vari(interp, "apache::REQUEST_NO_BODY", NULL, REQUEST_NO_BODY);
+	set_vari(interp, "apache::REQUEST_CHUNKED_ERROR", NULL, REQUEST_CHUNKED_ERROR);
+	set_vari(interp, "apache::REQUEST_CHUNKED_DECHUNK", NULL, REQUEST_CHUNKED_DECHUNK);
+	
+	buf = "\
+	namespace eval apache {\
+		namespace export *\
+	}";
+	
+	run_script(interp, buf);
 }
 
 static apr_status_t tcl_cleanup(void *data)
@@ -566,7 +573,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d4");
+	ap_add_version_component(pconf, "mod_tcl/1.0d5");
 }
 
 static int run_handler(request_rec *r, int hh)
@@ -609,8 +616,14 @@ static int run_handler(request_rec *r, int hh)
 			
 			return HTTP_NOT_FOUND;
 		}
-		
+
+#ifdef HAVE_MMAP
 		mptr = mmap((caddr_t) 0, r->finfo.size, PROT_READ, MAP_SHARED, fd, 0);
+#else
+		mptr = malloc(r->finfo.size);
+		read(fd, mptr, r->finfo.size);
+#endif /* HAVE_MMAP */
+
 		bptr = (char*) malloc(r->finfo.size + flen + 21);
 		
 		memcpy(bptr, "namespace eval ", 15);		pos += 15;
@@ -619,7 +632,12 @@ static int run_handler(request_rec *r, int hh)
 		memcpy(bptr + pos, mptr, r->finfo.size);	pos += r->finfo.size;
 		memcpy(bptr + pos, "\n}\0", 3);
 		
+#ifdef HAVE_MMAP
 		munmap((char*) mptr, r->finfo.size);
+#else
+		free(mptr);
+#endif /* HAVE_MMAP */
+
 		close(fd);
 		
 		fptr = (file_cache*) apr_push_array(fcache);
@@ -686,7 +704,13 @@ static int run_handler(request_rec *r, int hh)
 			return HTTP_INTERNAL_SERVER_ERROR;
 		}
 		
+#ifdef HAVE_MMAP
 		mptr = mmap((caddr_t) 0, r->finfo.size, PROT_READ, MAP_SHARED, fd, 0);
+#else
+		mptr = malloc(r->finfo.size);
+		read(fd, mptr, f->finfo.size);
+#endif /* HAVE_MMAP */
+
 		bptr = malloc(r->finfo.size + flen + 21);
 		
 		memcpy(bptr, "namespace eval ", 15);		pos += 15;
@@ -695,7 +719,12 @@ static int run_handler(request_rec *r, int hh)
 		memcpy(bptr + pos, mptr, r->finfo.size);	pos += r->finfo.size;
 		memcpy(bptr + pos, "\n}\0", 3);
 		
+#ifdef HAVE_MMAP
 		munmap((char*) mptr, r->finfo.size);
+#else
+		free(mptr);
+#endif /* HAVE_MMAP */
+
 		close(fd);
 		
 		fptr = (file_cache*) apr_push_array(fcache);

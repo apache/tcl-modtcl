@@ -261,7 +261,7 @@ static char* mstrstr(char *haystack, char *needle, size_t n, size_t m)
 static int read_post_data(request_rec *r, Tcl_Interp *interp, char *boundary)
 {
 	int rc, lpos = 0, blen = strlen(boundary);
-	char *lbuf, *ptr;
+	char *lbuf, *ptr, *nm_var = apr_psprintf(r->pool, "%s::pram", r->filename);
 	long remaining;
 	
 	if ((rc = ap_setup_client_block(r, REQUEST_CHUNKED_ERROR)) != OK) {
@@ -362,7 +362,7 @@ static int read_post_data(request_rec *r, Tcl_Interp *interp, char *boundary)
 					
 					file_key = apr_psprintf(r->pool, "%s_filename", key);
 					
-					set_varb(interp, "::pram", file_key, file_val, i);
+					set_varb(interp, nm_var, file_key, file_val, i);
 				}
 				
 				break;
@@ -388,7 +388,7 @@ static int read_post_data(request_rec *r, Tcl_Interp *interp, char *boundary)
 			val[vlen] = '\0';
 		}
 
-		set_varb(interp, "::pram", key, val, vlen);
+		set_varb(interp, nm_var, key, val, vlen);
 		
 		free(val);
 		
@@ -403,6 +403,7 @@ static int read_post(request_rec *r, Tcl_Interp *interp)
 {
 	int rc;
 	const char *val, *key;
+	char *nm_var = apr_psprintf(r->pool, "%s::pram", r->filename);
 	char *rbuf;
 	
 	if ((rc = ap_setup_client_block(r, REQUEST_CHUNKED_ERROR)) != OK) {
@@ -448,7 +449,7 @@ static int read_post(request_rec *r, Tcl_Interp *interp)
 			break;
 		}
 		
-		set_var(interp, "::pram", (char*) key, (char*) val);
+		set_var(interp, nm_var, (char*) key, (char*) val);
 	}
 	
 	return OK;
@@ -1582,28 +1583,28 @@ int cmd_base64_decode(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST o
 
 int cmd_ap_allow_options(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_allow_options(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_allow_options(_r)));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_allow_overrides(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_allow_overrides(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_allow_overrides(_r)));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_default_type(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_default_type(_r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_default_type(_r), -1));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_document_root(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_document_root(_r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_document_root(_r), -1));
 	
 	return TCL_OK;
 }
@@ -1619,14 +1620,14 @@ int cmd_ap_get_remote_host(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CO
 	}
 	
 	Tcl_GetIntFromObj(interp, objv[1], &i);
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_get_remote_host(_r->connection, _r->per_dir_config, i), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_remote_host(_r->connection, _r->per_dir_config, i), -1));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_get_remote_logname(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_get_remote_logname(_r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_remote_logname(_r), -1));
 	
 	return TCL_OK;
 }
@@ -1639,14 +1640,14 @@ int cmd_ap_construct_url(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONS
 		return TCL_ERROR;
 	}
 	
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_construct_url(_r->pool, Tcl_GetString(objv[1]), _r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_construct_url(_r->pool, Tcl_GetString(objv[1]), _r), -1));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_get_server_name(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_get_server_name(_r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_server_name(_r), -1));
 	
 	return TCL_OK;
 }
@@ -1654,7 +1655,7 @@ int cmd_ap_get_server_name(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CO
 int cmd_ap_get_server_port(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
 	/* int should suffice since ports are usually unsigned short */
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_get_server_port(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_get_server_port(_r)));
 	
 	return TCL_OK;
 }
@@ -1665,14 +1666,14 @@ int cmd_ap_get_limit_req_body(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 	   as it doesn't appear to have any unsigned support... it might be possible to assign it
 	   to a double?
 	*/
-	Tcl_SetObjResult(ixx, Tcl_NewLongObj(ap_get_limit_req_body(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewLongObj(ap_get_limit_req_body(_r)));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_get_limit_xml_body(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_get_limit_xml_body(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_get_limit_xml_body(_r)));
 	
 	return TCL_OK;
 }
@@ -1701,28 +1702,28 @@ int cmd_ap_exists_config_define(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Ob
 		return TCL_ERROR;
 	}
 	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_exists_config_define(Tcl_GetString(objv[1]))));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_exists_config_define(Tcl_GetString(objv[1]))));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_auth_type(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_auth_type(_r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_auth_type(_r), -1));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_auth_name(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_auth_name(_r), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_auth_name(_r), -1));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_satisfies(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_satisfies(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_satisfies(_r)));
 	
 	return TCL_OK;
 }
@@ -1737,13 +1738,13 @@ int cmd_ap_requires(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST obj
 	for (i = 0; i < a->nelts; i++) {
 		Tcl_Obj *xobj = Tcl_NewObj();
 		
-		Tcl_ListObjAppendElement(ixx, xobj, Tcl_NewIntObj(ra[i].method_mask));
-		Tcl_ListObjAppendElement(ixx, xobj, Tcl_NewStringObj(ra[i].requirement, -1));
+		Tcl_ListObjAppendElement(interp, xobj, Tcl_NewIntObj(ra[i].method_mask));
+		Tcl_ListObjAppendElement(interp, xobj, Tcl_NewStringObj(ra[i].requirement, -1));
 		
-		Tcl_ListObjAppendElement(ixx, obj, xobj);
+		Tcl_ListObjAppendElement(interp, obj, xobj);
 	}
 	
-	Tcl_SetObjResult(ixx, obj);
+	Tcl_SetObjResult(interp, obj);
 	
 	return TCL_OK;
 }
@@ -1774,7 +1775,7 @@ int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 {
 	Tcl_Obj *obj;
 	
-	obj = Tcl_GetVar2Ex(ixx, "content_type", NULL, 0);
+	obj = Tcl_GetVar2Ex(interp, "content_type", NULL, 0);
 	
 	if (obj) {
 		_r->content_type = Tcl_GetString(obj);
@@ -1787,14 +1788,14 @@ int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 
 int cmd_ap_send_http_trace(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_send_http_trace(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_send_http_trace(_r)));
 	
 	return TCL_OK;
 }
 
 int cmd_ap_send_http_options(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_send_http_options(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_send_http_options(_r)));
 	
 	return TCL_OK;
 }
@@ -1842,7 +1843,7 @@ int cmd_ap_set_content_length(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 
 int cmd_ap_set_keepalive(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_set_keepalive(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_set_keepalive(_r)));
 	
 	return TCL_OK;
 }
@@ -1859,7 +1860,7 @@ int cmd_ap_rationalize_mtime(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *
 	
 	Tcl_GetIntFromObj(interp, objv[1], (int*) &mtime);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_rationalize_mtime(_r, mtime)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_rationalize_mtime(_r, mtime)));
 	
 	return TCL_OK;
 }
@@ -1876,7 +1877,7 @@ int cmd_ap_make_etag(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST ob
 	
 	Tcl_GetIntFromObj(interp, objv[1], &i);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_make_etag(_r, i), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_make_etag(_r, i), -1));
 	
 	return TCL_OK;
 }
@@ -1897,7 +1898,7 @@ int cmd_ap_set_last_modified(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *
 
 int cmd_ap_meets_conditions(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_meets_conditions(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_meets_conditions(_r)));
 	
 	return TCL_OK;
 }
@@ -1971,7 +1972,7 @@ int cmd_ap_get_status_line(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CO
 	
 	Tcl_GetIntFromObj(interp, objv[1], &status);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_get_status_line(status), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_status_line(status), -1));
 	
 	return TCL_OK;
 }
@@ -1988,7 +1989,7 @@ int cmd_ap_setup_client_block(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 	
 	Tcl_GetIntFromObj(interp, objv[1], &read_policy);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_setup_client_block(_r, read_policy)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_setup_client_block(_r, read_policy)));
 	
 	return TCL_OK;
 }
@@ -2010,7 +2011,7 @@ int cmd_ap_get_client_block(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 	
 	bufsiz = ap_get_client_block(_r, buffer, bufsiz);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(bufsiz));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(bufsiz));
 	
 	if (bufsiz > 0) {
 		Tcl_SetVar2Ex(interp, "R", NULL, Tcl_NewByteArrayObj(buffer, bufsiz), TCL_LEAVE_ERR_MSG);
@@ -2021,7 +2022,7 @@ int cmd_ap_get_client_block(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 
 int cmd_ap_discard_request_body(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_discard_request_body(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_discard_request_body(_r)));
 	
 	return TCL_OK;
 }
@@ -2054,7 +2055,7 @@ int cmd_ap_get_basic_auth_pw(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *
 	
 	xx = ap_get_basic_auth_pw(_r, &pw);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(xx));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(xx));
 
 	if (xx != 0) {
 		Tcl_SetVar2Ex(interp, "R", NULL, Tcl_NewStringObj(pw, -1), TCL_LEAVE_ERR_MSG);
@@ -2088,7 +2089,7 @@ int cmd_ap_method_number_of(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 		return TCL_ERROR;
 	}
 	
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_method_number_of(Tcl_GetString(objv[1]))));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_method_number_of(Tcl_GetString(objv[1]))));
 	
 	return TCL_OK;
 }
@@ -2105,7 +2106,7 @@ int cmd_ap_method_name_of(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CON
 	
 	Tcl_GetIntFromObj(interp, objv[1], &methnum);
 	
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_method_name_of(methnum), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_method_name_of(methnum), -1));
 	
 	return TCL_OK;
 }
@@ -2142,7 +2143,7 @@ int cmd_ap_internal_redirect_handler(ClientData cd, Tcl_Interp *ixx, int objc, T
 
 int cmd_ap_some_auth_required(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewIntObj(ap_some_auth_required(_r)));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(ap_some_auth_required(_r)));
 	
 	return TCL_OK;
 }
@@ -2187,7 +2188,7 @@ int cmd_ap_allow_methods(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONS
 
 int cmd_ap_get_server_version(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_get_server_version(), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_server_version(), -1));
 	
 	return TCL_OK;
 }
@@ -2207,7 +2208,7 @@ int cmd_ap_add_version_component(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_O
 
 int cmd_ap_get_server_built(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	Tcl_SetObjResult(ixx, Tcl_NewStringObj(ap_get_server_built(), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_server_built(), -1));
 	
 	return TCL_OK;
 }
@@ -2216,8 +2217,10 @@ int cmd_ap_get_server_built(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *C
 
 int cmd_ap_create_environment(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
-	char **env;
+	char **env, *nm_env;
 	int i;
+	
+	asprintf(&nm_env, "%s::env", _r->filename);
 	
 	ap_add_cgi_vars(_r);
 	ap_add_common_vars(_r);
@@ -2228,9 +2231,11 @@ int cmd_ap_create_environment(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 		char *sptr = strchr(env[i], '=');
 		
 		*sptr = '\0';
-		set_var(ixx, "::env", env[i], sptr + 1);
+		set_var(interp, nm_env, env[i], sptr + 1);
 		*sptr = '=';
 	}
+	
+	free(nm_env);
 	
 	return TCL_OK;
 }

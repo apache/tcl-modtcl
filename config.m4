@@ -5,8 +5,8 @@ APACHE_MODPATH_INIT(mod_tcl)
 APACHE_MODULE(tcl, embedded tcl interpreter, tcl_core.lo tcl_cmds.lo tcl_misc.lo, , yes)
 
 if test "$enable_tcl" = "yes"; then
-	AC_CHECK_HEADERS(tcl.h inttypes.h int_types.h)
-	AC_CHECK_FUNCS(asprintf)
+	AC_CHECK_HEADERS(tcl.h inttypes.h int_types.h sys/mman.h)
+	AC_CHECK_FUNCS(asprintf mmap)
 
 	dirs="/usr/local/lib /usr/lib"
 
