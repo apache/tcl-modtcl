@@ -63,16 +63,16 @@ static apr_status_t tcl_cleanup(void *data);
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s);
 static void* tcl_create_dir_config(apr_pool_t *p, char *d);
 
-/* 0  */ static int tcl_handler(request_rec *r);
-/* 1  */ static int tcl_post_read_request(request_rec *r);
-/* 2  */ static int tcl_translate_name(request_rec *r);
-/* 3  */ static int tcl_header_parser(request_rec *r);
-/* 4  */ static int tcl_access_checker(request_rec *r);
-/* 5  */ static int tcl_check_user_id(request_rec *r);
-/* 6  */ static int tcl_auth_checker(request_rec *r);
-/* 7  */ static int tcl_type_checker(request_rec *r);
-/* 8  */ static int tcl_fixups(request_rec *r);
-/* 9  */ static int tcl_log_transaction(request_rec *r);
+/* 0  */ inline int tcl_handler(request_rec *r);
+/* 1  */ inline int tcl_post_read_request(request_rec *r);
+/* 2  */ inline int tcl_translate_name(request_rec *r);
+/* 3  */ inline int tcl_header_parser(request_rec *r);
+/* 4  */ inline int tcl_access_checker(request_rec *r);
+/* 5  */ inline int tcl_check_user_id(request_rec *r);
+/* 6  */ inline int tcl_auth_checker(request_rec *r);
+/* 7  */ inline int tcl_type_checker(request_rec *r);
+/* 8  */ inline int tcl_fixups(request_rec *r);
+/* 9  */ inline int tcl_log_transaction(request_rec *r);
 
 static const char* add_hand(cmd_parms *parms, void *mconfig, const char *arg);
 static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
@@ -81,8 +81,6 @@ static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one,
 static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
 
 typedef const char* (*fz_t)(void);
-
-#define NUM_HANDLERS 10
 
 static const command_rec tcl_commands[] = {
 	AP_INIT_FLAG(		"Tcl",							(fz_t) sfl,				(void*) 1,	OR_AUTHCFG,		"turn mod_tcl on or off." ),
@@ -140,7 +138,7 @@ typedef struct {
 
 typedef struct {
 	int					fl;
-	char				*handlers[NUM_HANDLERS];
+	char				*handlers[10];
 	apr_array_header_t	*var_list;
 } tcl_config_rec;
 
@@ -165,7 +163,7 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d)
 	tclr->fl		= 0;
 	tclr->var_list	= apr_array_make(p, 0, sizeof(var_cache));
 	
-	memset(tclr->handlers, 0, NUM_HANDLERS * sizeof(char*));
+	memset(tclr->handlers, 0, 10 * sizeof(char*));
 	
 	return tclr;
 }
@@ -556,7 +554,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0dPRE7-2001032300");
+	ap_add_version_component(pconf, "mod_tcl/1.0d7");
 }
 
 static int run_handler(request_rec *r, int hh)
@@ -738,7 +736,7 @@ static int run_handler(request_rec *r, int hh)
 	return xx;
 }
 
-static int tcl_handler(request_rec *r)
+inline int tcl_handler(request_rec *r)
 {
 	if (strcmp("tcl-handler", r->handler)) {
 		return DECLINED;
@@ -747,47 +745,47 @@ static int tcl_handler(request_rec *r)
 	return run_handler(r, 0);
 }
 
-static int tcl_post_read_request(request_rec *r)
+inline int tcl_post_read_request(request_rec *r)
 {
 	return run_handler(r, 1);
 }
 
-static int tcl_translate_name(request_rec *r)
+inline int tcl_translate_name(request_rec *r)
 {
 	return run_handler(r, 2);
 }
 
-static int tcl_header_parser(request_rec *r)
+inline int tcl_header_parser(request_rec *r)
 {
 	return run_handler(r, 3);
 }
 
-static int tcl_access_checker(request_rec *r)
+inline int tcl_access_checker(request_rec *r)
 {
 	return run_handler(r, 4);
 }
 
-static int tcl_check_user_id(request_rec *r)
+inline int tcl_check_user_id(request_rec *r)
 {
 	return run_handler(r, 5);
 }
 
-static int tcl_auth_checker(request_rec *r)
+inline int tcl_auth_checker(request_rec *r)
 {
 	return run_handler(r, 6);
 }
 
-static int tcl_type_checker(request_rec *r)
+inline int tcl_type_checker(request_rec *r)
 {
 	return run_handler(r, 7);
 }
 
-static int tcl_fixups(request_rec *r)
+inline int tcl_fixups(request_rec *r)
 {
 	return run_handler(r, 8);
 }
 
-static int tcl_log_transaction(request_rec *r)
+inline int tcl_log_transaction(request_rec *r)
 {
 	return run_handler(r, 9);
 }

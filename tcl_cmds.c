@@ -1620,7 +1620,7 @@ int cmd_ap_get_remote_host(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CO
 	}
 	
 	Tcl_GetIntFromObj(interp, objv[1], &i);
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_remote_host(_r->connection, _r->per_dir_config, i), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(ap_get_remote_host(_r->connection, _r->per_dir_config, i, NULL), -1));
 	
 	return TCL_OK;
 }
