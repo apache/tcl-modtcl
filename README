@@ -1,17 +1,8 @@
 mod_tcl 1.0 Developer Documentation
 -----------------------------------
 
-This documentation referes to mod_tcl 1.0d4.
+This documentation referes to mod_tcl 1.0d7.
 Please see tcl.apache.org and www.fractal.net for more information.
-
-BUGS
-----
-
-Tcl_Hook_Post_Read_Request
-Tcl_Hook_Translate_Name
-
-do not currently function because Apache crashes after they are DECLINEd
-
 
 Configuration Directives
 ------------------------
