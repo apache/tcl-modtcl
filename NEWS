@@ -1,1 +1,43 @@
-1.0d5
+Changes in 1.0d5
+--------------------------------------------------------------------------------
+
+- Configuration checks for mmap() and will use malloc(),read(),free() in that order to replace mmap() procedures.
+- Constants and commands are now placed in the ::apache namespace, so you must import that namespace into your scripts.
+- A test script is included with the distribution for testing and example purposes.  test_script.tm
+
+TODO
+--------------------------------------------------------------------------------
+
+1. Add configuration documentation to README, add documentation regarding `r' and `r_set' commands.
+2. Possible addition of option to build shared object (.so) library.  (It appears Apache 2.0 has a configuration directive for this --enable-shared, but it appears to be not implemented yet...).
+3. A couple of hooks are broken (Apache bug?) the DECLINE causes the server to exit on signal 11 (SEGV).
+4. Add non-standard hooks?
+5. Add filters?
+6. libapreq (doesn't appear to be ported to 2.0 completley yet...)
+7. Decide what goals need to be acheived for release 1.0
+
+Map
+--------------------------------------------------------------------------------
+
+- 1.0d0 -| Inital port from mod_tcl* 0.26, single file split into 4
+         |
+- 1.0d1 -| removal of nasties, update of configuration
+         |
+- 1.0d2 -| addition of some API commands
+         |
+- 1.0d3 -| more of API exposed, new config option, inital checkin to CVS
+         |
+- 1.0d4 -| Documentation, 99% of API exposed
+         |
+* 1.0d5 *| constants commands in ::apache namespace, mmap checking, test script
+         |
+- 1.0d6 -|
+         |
+- 1.0d7 -|
+         |
+- 1.0d8 -|
+         |
+- 1.0d9 -|
+         |
+- 1.0.0 -|
+
