@@ -74,8 +74,6 @@ static void* tcl_create_dir_config(apr_pool_t *p, char *d);
 /* 8  */ static int tcl_fixups(request_rec *r);
 /* 9  */ static int tcl_log_transaction(request_rec *r);
 
-/* 10 */ static int tcl_http_method(const request_rec *r);
-
 static const char* add_hand(cmd_parms *parms, void *mconfig, const char *arg);
 static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
 static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, const char *two, const char *three);
@@ -85,13 +83,17 @@ static const char *tcl_no_args(cmd_parms *parms, void *mconfig);
 
 typedef const char* (*fz_t)(void);
 
-#define NUM_HANDLERS 11
+#define NUM_HANDLERS 10
 
 static const command_rec tcl_commands[] = {
 	AP_INIT_FLAG(		"Tcl",							(fz_t) sfl,				(void*) 1,	OR_AUTHCFG,		"turn mod_tcl on or off." ),
 	AP_INIT_TAKE23(		"Tcl_Var",						(fz_t) tcl_set,			NULL,		OR_AUTHCFG,		"set global variables in TCL." ),
 	AP_INIT_TAKE2(		"Tcl_ListVar",					(fz_t) tcl_setlist,		NULL,		OR_AUTHCFG,		"set global list variables." ),
-	AP_INIT_TAKE1(		"Tcl_ContentHandlers",			(fz_t) add_hand,		(void*) 0,	OR_AUTHCFG,		"add content handlers." ),
+	
+	/* this may be phased out, it should now be, Tcl_ContentHandler */
+	AP_INIT_TAKE1(		"Tcl_ContentHandlers",			(fz_t) add_hand,		(void*) 0,	OR_AUTHCFG,		"add content handler." ),
+	
+	AP_INIT_TAKE1(		"Tcl_ContentHandler",			(fz_t) add_hand,		(void*) 0,	OR_AUTHCFG,		"add content handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Post_Read_Request",	(fz_t) add_hand,		(void*) 1,	OR_AUTHCFG,		"add post_read_request handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Translate_Name",		(fz_t) add_hand,		(void*) 2,	OR_AUTHCFG,		"add translate_name handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Header_Parser",		(fz_t) add_hand,		(void*) 3,	OR_AUTHCFG,		"add header_parser handlers." ),
@@ -101,7 +103,6 @@ static const command_rec tcl_commands[] = {
 	AP_INIT_TAKE1(		"Tcl_Hook_Type_Checker",		(fz_t) add_hand,		(void*) 7,	OR_AUTHCFG,		"add type_checker handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Fixups",				(fz_t) add_hand,		(void*) 8,	OR_AUTHCFG,		"add fixups handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Log_Transaction",		(fz_t) add_hand,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
-	AP_INIT_TAKE1(		"Tcl_Hook_HTTP_Method",			(fz_t) add_hand,		(void*) 10,	OR_AUTHCFG,		"add http_method handlers." ),
 	AP_INIT_RAW_ARGS(	"<Tcl>",						(fz_t) tcl_raw_args,	NULL,		OR_AUTHCFG,		"add raw tcl to the interpreter." ),
 	AP_INIT_NO_ARGS(	"</Tcl>",						(fz_t) tcl_no_args,		NULL,		OR_AUTHCFG,		"end of tcl section." ),
 	{ NULL }
@@ -116,9 +117,9 @@ static void register_hooks(void)
 {
 	ap_hook_pre_config(tcl_init, NULL, NULL, AP_HOOK_REALLY_FIRST);
 	ap_hook_post_config(tcl_init_handler, NULL, NULL, AP_HOOK_MIDDLE);
-/*	
-	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, AP_HOOK_MIDDLE);
-	ap_hook_translate_name(tcl_translate_name, NULL, NULL, AP_HOOK_MIDDLE);
+	
+//	ap_hook_post_read_request(tcl_post_read_request, NULL, NULL, AP_HOOK_MIDDLE);
+//	ap_hook_translate_name(tcl_translate_name, NULL, NULL, AP_HOOK_MIDDLE);
 	ap_hook_header_parser(tcl_header_parser, NULL, NULL, AP_HOOK_MIDDLE);
 	ap_hook_access_checker(tcl_access_checker, NULL, NULL, AP_HOOK_MIDDLE);
 	ap_hook_check_user_id(tcl_check_user_id, NULL, NULL, AP_HOOK_MIDDLE);
@@ -126,11 +127,6 @@ static void register_hooks(void)
 	ap_hook_type_checker(tcl_type_checker, NULL, NULL, AP_HOOK_MIDDLE);
 	ap_hook_fixups(tcl_fixups, NULL, NULL, AP_HOOK_MIDDLE);
 	ap_hook_log_transaction(tcl_log_transaction, NULL, NULL, AP_HOOK_MIDDLE);
-*/
-
-/*
-	ap_hook_http_method(tcl_http_method, NULL, NULL, AP_HOOK_MIDDLE);
-*/
 }
 
 AP_DECLARE_DATA module tcl_module = {
@@ -570,7 +566,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static void tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d3");
+	ap_add_version_component(pconf, "mod_tcl/1.0d4");
 }
 
 static int run_handler(request_rec *r, int hh)
@@ -796,10 +792,4 @@ static int tcl_fixups(request_rec *r)
 static int tcl_log_transaction(request_rec *r)
 {
 	return run_handler(r, 9);
-}
-
-static int tcl_http_method(const request_rec *r)
-{
-	/* this isn't nice at all!!! */
-	return run_handler((request_rec*) r, 10);
 }
