@@ -1,70 +1,357 @@
-Mail bug reports to: general@tcl.apache.org
+This is my copy of some information I wrote for mod_tcl for Apache 2.0 from: Wrox Press. ISBN 1-861007-22-1 Apche 2.0.  If you want it pretty printed get the book. (MKL)
 
+Things that are different since this was written.
 
-mod_tcl 1.0d8-2001112900 INSTALL
---------------------------------
+1. supports Apache 2.0.40
+2. first release of mod_tcl 1.0, I've been running this for months stable no errors in error_log.
+   I don't think all of the functionality is complete but it's decently broad.  Some things are
+   missing like the boundary in the request_rec, because it doesn't exist in Apache anymore...
+3. I recommend using Tcl 8.4 since it supports WideInt (64-bit) integers.
+4. Runs on Solaris 9 sparcv9 ABI which is the 64-bit ABI, I assume it will run on others as well.
+   (used gcc 3.1.1 with -m64)
+5. You can use --with-tcldir=path_to_tclConfig.sh in ./configure
+6. ./configure also adds -R<tcl_library_path> to linker phase.  Just in case you don't have
+   /usr/local/lib setup as default.
 
-This installation refers to installing mod_tcl 1.0d8-2001112900 with
-Apache 2.0.28.  This installation document refers to no other versions
-of mod_tcl or Apache.
+------------------------------------------------------------------------
 
-1.  Ungzip and untar the mod_tcl.tar.gz file.
-    (tar -zxf mod_tcl.tar.gz)
-2.  Move the mod_tcl directory to the modules directory in the httpd
-    root.
-    (mv mod_tcl httpd-2_0_28/modules)
-3.  Change directory to the root level of the httpd distribution and run
-    the `autoconf' and `autoheader' commands.  You must have the
-    autoconf distribution installed, which is available from any GNU mirror.
-    (cd httpd-2_0_28;autoconf;autoheader)
-4.  Configure the make process by typing `./configure'.  You may include
-    other options.
-    (./configure)
-5.  Make the distribution and install it.
-    (make;make install)
-6.  At this point the compile and installation has completed and you
-    need to edit the httpd.conf file, this is usually located at
-    /usr/local/apache2/conf for a default install.
-    
-Sample httpd.conf entry for using mod_tcl in a VirtualHost statement
---------------------------------------------------------------------
+Mod_tcl incorporates a Tcl interpreter into the Apache web server.  This will allow Apache to run Tcl scripts natively without having to reload a Tcl interpreter every time the script is run.  The Tcl scripts are cached in the Tcl interpreter until the script file modification time changes or Apache is restarted.  This allows Tcl scripts using mod_tcl in Apache to execute much faster than traditional CGI scripts which must initialize an interpreter every time a script is executed.  Additionally mod_tcl exports the Apache API which allows a programmer to have complete control over http requests that CGI scripts can not provide.
 
-<VirtualHost 206.9.161.23>
-    ServerName alpha-decay.com
-    ServerAlias www.alpha-decay.com
+Mod_tcl is an Apache module in its own right, but it can also be used as a gateway for writing Apache modules in Tcl versus C.  Existing Tcl packages whether written in C or Tcl can be easily integrated into mod_tcl scripts.  This allows a large collection of existing Tcl packages to be used without having to rewrite functionality or incur a performance hit by using an alternative execution model like CGI.
 
-    DocumentRoot "/export/web/alpha-decay.com"
+Mod_tcl is designed to be powerful, lightweight, and fast.  The additional overhead from the Tcl interpreter will be negligible when considering the flexibility and speed achieved.  In addition there is no fluff involved with mod_tcl, only the availability of the Apache API and Tcl interpreter is provided.  The programmer is given the choice of what packages may be necessary for each script, for example a package may be required for communication with a database.  This provides less resource pollution, dependency on additional required packages, and better efficiency in the http request process.
 
-    <Directory /export/web/alpha-decay.com>
-        AddHandler tcl-handler tm
-        
-        Tcl_ContentHandler content_handler
-    </Directory>
+Building and Installing Apache with mod_tcl
+
+Mod_tcl is configured using the Apache 2.0 configuration system.  Normally a vanilla install of Apache doesn’t require a rebuild of the configuration system, but since mod_tcl requires libraries not usually built into Apache it is necessary to rebuild the configure script using GNU autoconf.  The GNU autoconf tools may already be installed on your system and a check should be performed to confirm this to avoid unnecessary reinstallation.  If the GNU autoconf tools are not installed then they can be downloaded from a GNU distribution site, for more information check the GNU autoconf website http://www.gnu.org/software/autoconf/.  Please note that GNU autoconf also requires a recent release of an m4 macro processor.  The next step is to download the mod_tcl source from the Apache Tcl project web site at http://tcl.apache.org or from anonymous CVS.  The following CVS commands will checkout the mod_tcl source from cvs.apache.org, no sandbox is required as this will download all the source to the tcl-modtcl directory.  The CVS login password is anoncvs.
+
+$ cvs -d:pserver:anoncvs@cvs.apache.org:/home/cvspublic login
+(Logging in to anoncvs@cvs.apache.org)
+CVS password: <enter anoncvs>
+$ cvs -d:pserver:anoncvs@cvs.apache.org:/home/cvspublic checkout tcl-modtcl
+
+If mod_tcl is downloaded from the Apache Tcl project web site then the package must be un-archived and moved to the Apache 2.0 modules directory.  If CVS is used the directory must be renamed to mod_tcl from tcl-modtcl and then moved to the Apache 2.0 modules directory.  It is important to note that the directory that contains the mod_tcl source must be named mod_tcl otherwise the Apache configuration system will not recognize mod_tcl.  The following example assumes the Apache 2.0 source distribution is located in the same directory where the mod_tcl source was acquired through CVS.
+
+$ mv tcl-modtcl httpd-2.0.32/modules/mod_tcl
+
+Now the Apache configuration system is ready to be rebuilt and include mod_tcl.  Change directory to the root level of the Apache 2.0 source and rebuild the configuration system.
+
+$ cd httpd-2.0.32
+$ autoconf
+$ autoheader
+
+Running the configure script with the help flag will show that mod_tcl configuration macros have been assimilated into the Apache configuration system.
+
+$ ./configure --help
+…
+--disable-tcl           embedded tcl interpreter
+…
+
+mod_tcl is enabled by default once the Apache configuration has been rebuilt.  If it is necessary to disable mod_tcl then this may be accomplished from the --disable-tcl option passed to the configure script.
+
+The next step is to configure the Apache build process by running the configure script.  During configuration we will see status output, the mod_tcl configuration status output will look similar to the following.
+
+checking whether to enable mod_tcl... yes (default)
+checking for tcl.h... yes
+checking for inttypes.h... yes
+checking for int_types.h... no
+checking for sys/mman.h... (cached) yes
+checking for asprintf... no
+checking for mmap... (cached) yes
+checking for tclConfig.sh in /usr/local/lib... yes
+checking for tcl version... 8.3
+
+It is important to make sure that configuration found the tcl.h header file.  If the tcl.h header file was not found extra include paths may be required when compiling Apache 2.0, or a Tcl distribution may not be installed.  If Tcl is not installed the Tcl software can be obtained from http://www.tcl.tk.  Configuration will fail if the tclConfig.sh file is not found or the major Tcl version installed is less than 8.0.  It is recommended that the latest Tcl version be used.  If Tcl is installed and configuration was unable to find the tclConfig.sh file then the mod_tcl configuration macros may be modified.  By default mod_tcl configuration assumes the tclConfig.sh will be found in the directories /usr/lib or /usr/local/lib.  If the Tcl distribution on the system is installed in a different location then the file config.m4 in the mod_tcl directory can be modified to search in other directories.  If this is necessary then change directory to the mod_tcl directory and edit the config.m4 file.  In the config.m4 file there is a variable called dirs.  Append additional search paths to this string to allow more directories to be searched.  The following example shows the addition of the /usr/local2/lib directory.
+
+…
+AC_CHECK_FUNCS(asprintf mmap)
+
+dirs="/usr/local/lib /usr/lib /usr/local2/lib"
+
+found=0
+…
+
+If any modifications have been made to the config.m4 file then autoconf and autoheader will have to be run again.
+
+After configuration has completed the Apache web server can be compiled.  Change directory to the root level of the Apache 2.0 source distribution and execute the following commands.
+
+$ make
+$ make install
+
+This will compile Apache 2.0 with mod_tcl and install the distribution in the location specified at configuration time.  The Apache 2.0 binary will contain a statically linked mod_tcl module which may also statically link Tcl libraries depending on your Tcl installation.
+
+Configuring mod_tcl in Apache Configure Files
+
+In order to use mod_tcl in Apache 2.0 some mod_tcl configuration directives are required in the Apache 2.0 configuration file, usually called httpd.conf.  Mod_tcl is made active by activating one of the module hook calls.  There are ten hook calls in total corresponding to the available hook calls in the Apache API.  All hooks require an argument of the entire physical path to the file that contains the hook procedure except the content handler hook called Tcl_Hook_Handler.  Every hook does require an argument specifying the name of the procedure to be called.  Mod_tcl configuration directives are valid within Apache <Directory>…</Directory> or <Location>…</Location> blocks.
+
+Mod_tcl Hook Configuration Directives in Order of Execution
+Tcl_Hook_Post_Read_Request	Enables the post read request handler for request setup.
+Tcl_Hook_Translate_Name	Enables the translate name handler for URI to file translation.
+Tcl_Hook_Header_Parser	Enables the header parser handler for parsing http headers.
+Tcl_Hook_Access_Checker	Enables the access checker.
+Tcl_Hook_Check_User_ID	Enables the check user id handler.
+Tcl_Hook_Auth_Checker	Enables the auth checker.
+Tcl_Hook_Type_Checker	Enables the type checker.
+Tcl_Hook_Fixups	Enables a fix up handler.
+Tcl_Hook_Handler	Enables the content handler for delivery of data to client.
+Tcl_Hook_Log_Transaction	Enables the log transaction handler.
+
+Chances are the Tcl_Hook_Handler configuration directive will be the most commonly one used.  This is the handler that actually delivers the content and does most of the work.  This handler also does not require a file name argument passed to it, this is because many different script files may contain individual content handlers.  If the other phases of request processing were allowed to operate this way the request process would be much more complex, and mixing different file types with mod_tcl scripts would be impossible.
+
+In addition to the hook directives there are also configuration directives for pre setting variables in scripts.  The Tcl_Var directive is used when we want to set scalar variables or array variables. Tcl_ListVar is used to create a list.
+
+<Directory />
+…
+Tcl_Var my_number 7
+Tcl_Var my_array my_value1 10
+Tcl_Var my_array my_value2 20
+Tcl_ListVar my_list 1
+Tcl_ListVar my_list 2
+Tcl_ListVar my_list 3
+…
+</Directory>
+
+In the above example my_number is a scalar variable with value 7, my_array is an associative array with 2 elements, and my_list is a list with value {1,2,3}.  Variables set from the configuration file are automatically set in the calling scripts namespace, so the Tcl keyword variable will be required when using these variables.  These variables are only initialized once in a files namespace.  If code within one of the handlers is called and modifies the variables then they will be permanently modified until Apache is restarted.  Variables will remain persistent in the Tcl interpreter even if a script is reloaded because it was modified.
+
+The following example demonstrates a simple configuration setup for using mod_tcl in a virtual host directive.
+
+<VirtualHost 127.0.0.1>
+    ServerName any.host
+
+    DocumentRoot "/any.host"
 
     <Directory />
         Options FollowSymLinks
         AllowOverride None
     </Directory>
 
-    <Directory /export/web/alpha-decay.com/images>
-        SetHandler default-handler
+    <Directory /any.host>
+# allow files ending with the extenstion .tm to use mod_tcl as a content handler
+        AddHandler tcl-handler tm
 
-        Options Indexes FollowSymLinks
-
-        AllowOverride None
-
-        Order allow,deny
-        Allow from all
+        Tcl_Hook_Handler content_handler
     </Directory>
-
-    <Directory /export/web/alpha-decay.com/files>
-        SetHandler default-handler
-
-        Options Indexes FollowSymLinks
-
-        AllowOverride None
-
-        Order allow,deny
-        Allow from all
-     </Directory>
 </VirtualHost>
+
+This configuration example will allow any mixed files in the /any.host directory and will execute any script with a filename ending in .tm to be executed by mod_tcl.  This allows us to mix html and mod_tcl scripts together in the same directory.
+
+Writing mod_tcl Scripts
+
+Once configuration is set up we are ready to start writing the actual mod_tcl script that will contain the necessary handlers.  Using the previous configuration example we will assume that we are going to write a mod_tcl script called hello.tm in the /any.host directory.
+
+namespace import -force ::apache::*
+
+proc content_handler { } {
+    variable ::apache::OK
+
+    ap_send_http_header
+
+    rputs “hello world.”
+
+    return $OK
+}
+
+When this script is run it will print hello world in the clients browser.  There are several items to note in this script.  One the first line is a namespace import of everything in the ::apache namespace into the current namespace.  This allows us to use the Apache API functions (like rputs) without having to prefix ::apache::.  It is not necessary to import the Apache API like this but it will make it easier if the Apache API is referenced frequently.  Even if the Apache API is imported it is still necessary to declare variables in procedures from other namespaces (like ::apache::OK).  The ap_send_http_header function will send http headers to the client browser, even if we don’t define any headers Apache will send default headers.  The rputs command operates almost identically to the Tcl command puts, instead of writing to a file descriptor rputs writes to the clients browser.  rputs can not write to different file descriptors.  After every handler is run it must return with a value that signifies the outcome of the request phase.  The seven most common return values are: OK, DECLINED, DONE, HTTP_INTERNAL_SERVER_ERROR, HTTP_BAD_REQUEST, HTTP_MOVED_TEMPORARILY, and HTTP_NOT_FOUND.
+
+The Apache API in mod_tcl
+
+Now that we understand the basics of writing a mod_tcl script we can take the next step and explore the Apache API in mod_tcl.  All Apache API functions are implemented using the Tcl_CreateObjCommand() Tcl API function, this is why Tcl 8.0 is required.  Using Tcl objects instead of strings increases the efficiency of the request phases.  The Apache API implementation in mod_tcl can be broken done as follows.  All Apache API procedures are declared in the ::apache namespace.
+
+http_core.h Procedures		
+ap_allow_options	returns integer	requires no arguments
+ap_allow_overrides	returns integer	requires no arguments
+ap_default_type	returns string	requires no arguments
+ap_document_root	returns string	requires no arguments
+ap_get_remote_host	returns string	requires integer argument
+ap_get_remote_logname	returns string	requires no arguments
+ap_construct_url	returns string	requires uri string argument
+ap_get_server_name	returns strings	requires no arguments
+ap_get_server_port	returns integer	requires no arguments
+ap_get_limit_req_body	returns long	requires no arguments
+ap_get_limit_xml_body	returns integer	requires no arguments
+ap_custom_response	returns nothing	requires integer and string arguments
+ap_exists_config_define	returns integer	requires string argument
+ap_auth_type	returns string	requires no arguments
+ap_auth_name	returns string	requires no arguments
+ap_satisfies	returns integer	requires no arguments
+ap_requires	returns list	requires no arguments
+http_log.h Procedures		
+ap_log_error	returns nothings	requires level integer; status integer and log string arguments
+http_protocol.h Procedures		
+ap_send_http_header	returns nothing	requires no arguments
+ap_send_http_trace	returns integer	requires no arguments
+ap_send_http_options	returns integer	requires no arguments
+ap_finalize_request_protocol	returns nothing	requires no arguments
+ap_send_error_response	returns nothing	requires recursive error integer
+ap_set_content_length	returns nothing	requires length integer
+ap_set_keepalive	returns integer	requires no arguments
+ap_rationalize_mtime	returns integer	requires mtime integer
+ap_make_etag	returns string	requires force_weak integer
+ap_set_etag	returns nothing	requires no arguments
+ap_set_last_modified	returns nothing	requires no arguments
+ap_meets_conditions	returns integer	require no arguments
+ap_rputs	returns nothing	accepts –nonewline option; requires string
+ap_rwrite	returns nothing	requires data
+ap_rflush	returns nothing	requires no arguments
+ap_get_status_line	returns string	requires status intger
+ap_setup_client_block	returns integer	requires read policy integer
+ap_get_client_block	returns integer and sets variable R to returned data	requires bufsiz integer
+ap_discard_request_body	returns integer	requires no arguments
+ap_note_auth_failure	returns nothing	requires no arguments
+ap_note_basic_auth_failure	returns nothing	requires no arguments
+ap_note_digest_auth_failure	returns nothing	requires no arguments
+ap_get_basic_auth_pw	returns integer and sets variable R to string	requires no arguments
+ap_parse_uri	returns nothing	requires uri string
+ap_method_number_of	returns integer	requires method string
+ap_method_name_of	returns string	requires method integer
+http_request.h		
+ap_internal_redirect	returns nothing	requires uri string
+ap_internal_redirect_handler	returns nothing	requires uri string
+ap_some_auth_required	returns integer	requires no arguments
+ap_update_mtime	returns nothing	requires dependency mtime integer
+ap_allow_methods	returns nothing	requires reset intger and methods string
+httpd.h		
+ap_get_server_version	returns string	requires no arguments
+ap_add_version_component	returns no arguments	requires version string
+ap_get_server_built	returns string	requires no arguments
+util_script.h		
+ap_create_environment	returns nothing and sets variable env	requires no arguments
+
+There are also some utility procedures defined for interacting with large output, reading POST requests, and reading and setting variables in Apache request_rec structures.  The first utility function is abort.  The abort procedure accepts a string argument which will be displayed in the error message, abort returns nothing and will immediately abort processing of the handler and return a HTTP_INTERNAL_SERVER_ERROR.  The read_post procedure will read POST requests, it accepts no arguments and returns nothing.  read_post will set an array named pram in the local namespace with all the read data from the POST.  There is also a special procedure called output which helps write large amounts of data to a client.  The output procedure essentially calls rputs for each line, multiple lines must be contained within curly braces (like this: output { … }).  The next two procedures read and write variables to the request_rec structure in the Apache API.  To read request_rec variables we use the command r, to set request_rec variables we use the command r_set.  All variables are readable but not all variables are writable.
+
+r Procedure Arguments
+allowed	Returns integer	Requires 64-bit integer
+allowed_methods	Returns list of strings	Requires list of strings
+allowed_xmethods	Returns list of strings	Requires list of strings
+ap_auth_type	Returns string	Requires string
+args	Returns string	Requires string 
+assbackwards	Returns integer	Requires integer 
+boundary	Returns string	Not writable
+bytes_sent	Returns integer	Not writable
+chunked	Returns integer	Not writable
+clength	Returns long integer	Not writable
+content_encoding	Returns string	Requires string
+content_type	Returns string	Requires string 
+err_headers_out	Returns list of strings and sets err_headers_out array	Requires header name and value string
+expecting_100	Returns integer	Not writable
+filename	Returns string	Requires string
+handler	Returns string	Not writable
+headers_in	Returns list of strings and sets headers_in array	Not writable
+headers_out	Returns list of strings and sets headers_out array	Requires header name and value string 
+header_only	Returns integer	Requires integer 
+hostname	Returns string	Not writable
+method	Returns string	Not writable
+method_number	Returns integer	Not writable
+mtime	Returns integer	Not writable
+notes	Returns list of strings and sets notes array	Requires note name and value string
+no_cache	Returns integer	Requires integer
+no_local_copy	Returns integer	Requires integer 
+parsed_uri	Returns list of strings	Requires string
+path_info	Returns string	Requires string
+protocol	Returns string	Requires string
+proto_num	Returns integer	Requires integer
+proxyreq	Returns integer	Requires integer
+range	Returns string	Not writable
+read_body	Returns integer	Not writable
+read_chunked	Returns integer	Not writable
+read_length	Returns long integer	Not writable
+remaining	Returns long integer	Not writable
+request_time	Returns long integer	Not writable
+sent_bodyct	Returns integer	Not writable
+status	Returns integer	Not writable
+status_line	Returns string	Not writable
+subprocess_env	Returns list of strings and sets subprocess_env array	Requires name and value string
+the_request	Returns string	Requires string 
+unparsed_uri	Returns string	Requires string
+uri	Returns string	Requires string 
+user	Returns string	Requires string 
+vlist_validator	Returns string	Requires string
+
+r connection Procedure Arguments
+remote_ip	Returns string	Not writable
+remote_host	Returns string	Not writable
+remote_logname	Returns string	Not writable
+aborted	Returns integer	Not writable
+keepalive	Returns integer	Not writable
+doublereverse	Returns integer	Not writable
+keepalives	Returns integer	Not writable
+local_ip	Returns string	Not writable
+local_host	Returns string	Not writable
+id	Returns string	Not writable
+notes	Returns list of strings and sets connection_notes array	Requires note name and value string
+
+r server Procedure Arguments
+defn_name	Returns string	Not writable
+defn_line_number	Returns integer	Not writable
+server_admin	Returns string	Not writable
+server_hostname	Returns string	Not writable
+port	Returns integer	Not writable
+error_fname	Returns string	Not writable
+loglevel	Returns string	Not writable
+is_virtual	Returns string	Not writable
+addrs	Returns list	Not writable
+timeout	Returns integer	Not writable
+keep_alive_timeout	Returns integer	Not writable
+keep_alive_max	Returns integer	Not writable
+keep_alive	Returns integer	Not writable
+path	Returns string	Not writable
+names	Returns list of strings	Not writable
+wild_names	Returns list of strings	Not writable
+limit_req_line	Returns integer	Not writable
+limit_req_fieldsize	Returns integer	Not writable
+limit_req_fields	Returns integer	Not writable
+
+The following script will illustrate portions of mod_tcl that will be most commonly used.  This file is called example.tm.
+
+proc content_handler { } {
+        variable pram
+        variable env
+        variable ::apache::OK
+        variable ::apache::M_POST
+
+        if { [r method_number] == $M_POST } {
+                read_post
+        }
+
+        r_set content_type "text/html"
+
+        ap_create_environment
+        
+        set env_list [array names env]
+        set prm_list [array names pram]
+
+        ap_send_http_header
+        
+        rputs "<HR><B>Environment</B><BR><BR>"
+        
+        foreach i $env_list {
+                rputs "$i=$env($i)<BR>"
+        }
+        
+        rputs "<HR><B>Posted Variables</B><BR><BR>"
+        
+        foreach i $prm_list {
+                rputs "$i=$pram($i)<BR>"
+        }
+
+        rputs "<HR>"
+
+        output {
+                <CENTER>
+                <FORM METHOD=POST ACTION=[r uri]>
+                        <INPUT TYPE=text NAME=user_input>
+                        <INPUT TYPE=submit>
+                </FORM>
+                <BR>
+                [ap_get_server_version], [ap_get_server_built]
+                </CENTER>
+        }
+
+        return $OK
+}
+
+Looking at this script we see that the [r method_number] function is useful in determining the type of request being processed.  M_POST is an Apache API constant that specifies a request as an http POST request type.  There are several other request types defined in the Apache API also, the other most useful one will be M_GET.  If the request processed in the example.tm script is a POST then we make a call to read_post to parse the POST data and store the results in the array pram.  Next we initialize the environment with a call to [ap_create_environment], this will set up the env array with environment variables.  Notice that Apache will add environment variables that correspond to CGI parameters, this is useful for emulating CGI functionality and allows porting of CGI scripts to be more flexible.  The content_handler in example.tm will essentially print environment variables and any pram variables that were set from a POST request.  The remainder of the script uses the provided output procedure to send a block of HTML to the client, notice that procedure calls in output will work as expected.
+
+Additional Resources
+
+Mod_tcl is part of the Tcl Apache Project located at http://tcl.apache.org.  Information about the Tcl Apache Project and other Apache modules using Tcl can be found here.  Information on general Tcl topics and development is located at http://www.tcl.tk.

@@ -151,7 +151,6 @@ static uint8_t* buf_to_base64(const uint8_t *buf, size_t buf_len)
 		out[j++] = '=';
 		break;
 	  default:
-		// something wonkey happened...
 		break;
 	}
 
@@ -275,18 +274,12 @@ static int read_post_data(request_rec *r, Tcl_Interp *interp, char *boundary)
 		char buf[HUGE_STRING_LEN];
 		int len_read;
 		
-//		ap_hard_timeout("read_post_data", r);
-		
 		while ((len_read = ap_get_client_block(r, buf, sizeof(buf))) > 0) {
-//			ap_reset_timeout(r);
-			
 			memcpy(lbuf + lpos, buf, len_read);
 			lpos += len_read;
 		}
 		
 		lbuf[lpos] = '\0';
-		
-//		ap_kill_timeout(r);
 	}
 	
 	ptr = strstr(lbuf, boundary);
@@ -417,11 +410,7 @@ static int read_post(request_rec *r, Tcl_Interp *interp)
 		
 		rbuf = (char*) apr_pcalloc(r->pool, length + 1);
 		
-//		ap_hard_timeout("read_post", r);
-		
 		while ((len_read = ap_get_client_block(r, buf, sizeof(buf))) > 0) {
-//			ap_reset_timeout(r);
-			
 			if ((rpos + len_read) > length) {
 				rsize = length - rpos;
 			}
@@ -432,11 +421,7 @@ static int read_post(request_rec *r, Tcl_Interp *interp)
 			memcpy(rbuf + rpos, buf, rsize);
 			rpos += rsize;
 		}
-		
-//		ap_kill_timeout(r);
 	}
-	
-//	ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, r->server, 0, "read_post(...): %u, rbuf = %s", getpid(), rbuf);
 	
 	while (rbuf && *rbuf && (val = ap_getword(r->pool, (const char**) &rbuf, '&'))) {
 		key = ap_getword(r->pool, &val, '=');
@@ -598,7 +583,8 @@ static Tcl_Obj* r_chunked(void)
 
 static Tcl_Obj* r_boundary(void)
 {
-	return Tcl_NewStringObj(_r->boundary, -1);
+/* doesn't exist anymore.... :( */
+/*	return Tcl_NewStringObj(_r->boundary, -1); */
 }
 
 static Tcl_Obj* r_range(void)
@@ -1661,7 +1647,7 @@ int cmd_ap_get_limit_req_body(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 {
 	/* ap_get_limit_req_body returns an unsigned long, its possible it could overflow in TCL
 	   as it doesn't appear to have any unsigned support... it might be possible to assign it
-	   to a double?
+	   to a long long?
 	*/
 	Tcl_SetObjResult(interp, Tcl_NewLongObj(ap_get_limit_req_body(_r)));
 	
@@ -1770,6 +1756,7 @@ int cmd_ap_log_error(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST ob
 
 int cmd_ap_send_http_header(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj *CONST objv[])
 {
+/* I don't know if this does anything anymore? */
 /*
 	Tcl_Obj *obj;
 	

@@ -79,9 +79,6 @@ static const char* add_hand2(cmd_parms *parms, void *mconfig, const char *arg1, 
 static const char* sfl(cmd_parms *parms, void *mconfig, int flag);
 static const char* tcl_set(cmd_parms *parms, void *mconfig, const char *one, const char *two, const char *three);
 static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one, const char *two);
-//static const char* tcl_raw_args(cmd_parms *parms, void *mconfig, char *arg);
-
-//typedef const char* (*fz_t)(void);
 
 static const command_rec tcl_commands[] = {
 	/* this doesn't do anything anymore */
@@ -103,7 +100,6 @@ static const command_rec tcl_commands[] = {
 	AP_INIT_TAKE2(		"Tcl_Hook_Fixups",				/*(fz_t)*/ add_hand2,		(void*) 7,	OR_AUTHCFG,		"add fixups handlers." ),
 	AP_INIT_TAKE1(		"Tcl_Hook_Handler",				/*(fz_t)*/ add_hand1,		(void*) 8,	OR_AUTHCFG,		"add content handler." ),
 	AP_INIT_TAKE2(		"Tcl_Hook_Log_Transaction",		/*(fz_t)*/ add_hand2,		(void*) 9,	OR_AUTHCFG,		"add log_transaction handlers." ),
-//	AP_INIT_RAW_ARGS(	"<Tcl>",						/*(fz_t)*/ tcl_raw_args,	NULL,		RSRC_CONF|EXEC_ON_READ,		"add raw tcl to the interpreter." ),
 	{ NULL }
 };
 
@@ -245,33 +241,7 @@ static const char* tcl_setlist(cmd_parms *parms, void *mconfig, const char *one,
 	
 	return NULL;
 }
-/*
-static const char* tcl_raw_args(cmd_parms *cmd, void *mconfig, char *arg)
-{
-	char **xx, *z = apr_pstrdup(cmd->pool, "");
-	char l[MAX_STRING_LEN];
-	const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE|NOT_IN_LIMIT);
 
-	if (err != NULL) {
-		return err;
-	}
-    
-    while (!(ap_cfg_getline(l, MAX_STRING_LEN, cmd->config_file))) {
-		if (!strncasecmp(l, "</Tcl>", 6)) {
-			break;
-		}
-		
-    	// ick
-    	z = apr_pstrcat(cmd->pool, z, l, "\n", NULL);
-    }
-	
-	// ick
-	raw_tcl = realloc(raw_tcl, strlen(z) + 1);
-	strcat(raw_tcl, z);
-	
-	return NULL;
-}
-*/
 void run_script(Tcl_Interp* interp, char *fmt, ...)
 {
 	char *bptr = NULL;
@@ -572,7 +542,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static int tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0d8-2002031000");
+	ap_add_version_component(pconf, "mod_tcl/1.0");
 	
 	return OK;
 }
@@ -761,7 +731,6 @@ static int run_handler(request_rec *r, int hh)
 			ap_log_error(APLOG_MARK, APLOG_NOERRNO|APLOG_ERR, 0, r->server, "Tcl_EvalObjEx(%s): %s", eptr, Tcl_GetStringResult(interp));
 			
 			r->content_type = "text/html";
-//			ap_send_http_header(r);
 			
 			ap_rprintf(r, "<H3>TCL Error</H3><BR><PRE>%s</PRE>", Tcl_GetString(Tcl_GetVar2Ex(interp, "errorInfo", NULL, 0)));
 			
@@ -829,4 +798,3 @@ inline int tcl_log_transaction(request_rec *r)
 {
 	return run_handler(r, 9);
 }
-

@@ -1,13 +1,14 @@
 Tested Platforms
 ----------------
 
-SunOS-5.8/gcc-3.0.4/tcl-8.4a4/Apache-2.0.35
+SunOS-5.8/gcc-3.0.2/tcl-8.3.4/Apache-2.0.28
+SunOS-5.8/gcc-3.0.4/tcl-8.4b1/Apache-2.0.39
+SunOS-5.9/gcc-3.1.1/tcl-8.4b1/Apache-2.0.40
 
 Documentation
 -------------
 
-As this module is still in development there is no end user documentation.
-The source file breaks down like this:
+See the INSTALL file.
 
 tcl_core.c:
   core routines, handlers, configuration, initialization

@@ -7,8 +7,22 @@ APACHE_MODULE(tcl, embedded tcl interpreter, tcl_core.lo tcl_cmds.lo tcl_misc.lo
 if test "$enable_tcl" != "no"; then
 	AC_CHECK_HEADERS(tcl.h inttypes.h int_types.h sys/mman.h)
 	AC_CHECK_FUNCS(asprintf mmap)
-
-	dirs="/usr/local/lib /usr/lib"
+	
+	AC_ARG_WITH(tcldir, 
+		APACHE_HELP_STRING(--with-tcldir=DIR, Tcl config tclConfig.sh), 
+		[
+			dirs=$withval
+			
+			if -z $dirs; then
+				dirs="/usr/local/lib /usr/lib"
+			fi
+			
+			AC_MSG_RESULT(using `$dirs' to search for tclConfig.sh)
+		],
+		[	
+			dirs="/usr/local/lib /usr/lib"
+			AC_MSG_RESULT(using `$dirs' to search for tclConfig.sh)
+		])
 
 	found=0
 
@@ -40,7 +54,7 @@ if test "$enable_tcl" != "no"; then
 	    AC_MSG_ERROR("tcl 8.0 or later needed")
 	fi
 
-	LIBS="$LIBS -L$tnm_cv_path_tcl_config -ltcl$TCL_VERSION"
+	LIBS="$LIBS -L$tnm_cv_path_tcl_config -R$tnm_cv_path_tcl_config -ltcl$TCL_VERSION"
 	INCLUDES="$INCLUDES -I$TCL_PREFIX/include"
 	LDFLAGS="$LDFLAGS $TCL_LD_FLAGS"
 fi

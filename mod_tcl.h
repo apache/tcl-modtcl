@@ -62,6 +62,7 @@
 #include "apr.h"
 #include "apr_strings.h"
 #include "apr_lib.h"
+#include "apr_uri.h"
 
 #include "ap_config.h"
 #include "httpd.h"
@@ -72,8 +73,6 @@
 #include "http_protocol.h"
 #include "http_request.h"
 #include "util_script.h"
-//#include "util_uri.h"
-#include "apr_uri.h"
 
 #include "ap_config_auto.h"
 

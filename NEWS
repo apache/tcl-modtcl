@@ -1,3 +1,19 @@
+THIS FILE WILL NO LONGER BE USED.  See `INSTALL' instead.
+
+1.0
+--------------------------------------------------------------------------------
+1. supports Apache 2.0.40
+2. first release of mod_tcl 1.0, I've been running this for months stable no errors in error_log.
+   I don't think all of the functionality is complete but it's decently broad.  Some things are
+   missing like the boundary in the request_rec, because it doesn't exist in Apache anymore...
+3. I recommend using Tcl 8.4 since it supports WideInt (64-bit) integers.
+4. Runs on Solaris 9 sparcv9 ABI which is the 64-bit ABI, I assume it will run on others as well.
+   (used gcc 3.1.1 with -m64)
+5. You can use --with-tcldir=path_to_tclConfig.sh in ./configure
+6. ./configure also adds -R<tcl_library_path> to linker phase.  Just in case you don't have
+   /usr/local/lib setup as default.
+
+
 Changes in 1.0d8-2001112900
 --------------------------------------------------------------------------------
 - Some structures changed in Apache 2.0.28, noteably in the connection record,
