@@ -434,7 +434,7 @@ static int read_post(request_rec *r, Tcl_Interp *interp)
 			break;
 		}
 		
-		set_var(interp, nm_var, (char*) key, (char*) val);
+		set_var(interp, nm_var, (char*) key, "%s", (char*) val);
 	}
 	
 	return OK;
@@ -2219,7 +2219,7 @@ int cmd_ap_create_environment(ClientData cd, Tcl_Interp *ixx, int objc, Tcl_Obj 
 		char *sptr = strchr(env[i], '=');
 		
 		*sptr = '\0';
-		set_var(interp, nm_env, env[i], sptr + 1);
+		set_var(interp, nm_env, env[i], "%s", sptr + 1);
 		*sptr = '=';
 	}
 	

@@ -542,7 +542,7 @@ static apr_status_t tcl_cleanup(void *data)
 
 static int tcl_init_handler(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
-	ap_add_version_component(pconf, "mod_tcl/1.0");
+	ap_add_version_component(pconf, "mod_tcl/1.0.1");
 	
 	return OK;
 }
@@ -647,7 +647,7 @@ static int run_handler(request_rec *r, int hh)
 				char *namespc = (char*) malloc(strlen(r->filename) + strlen(vl[i].var1) + 3);
 				
 				sprintf(namespc, "%s::%s", r->filename, vl[i].var1);
-				set_var(interp, namespc, vl[i].var2, vl[i].var3);
+				set_var(interp, namespc, vl[i].var2, "%s", vl[i].var3);
 				free(namespc);
 			}
 			else if (vl[i].fl == 2) {
